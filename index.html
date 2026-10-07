@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuminaMap Pro - Projection Mapping Studio</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            900: '#0a0b0e',
+                            800: '#12141a',
+                            700: '#1a1d26',
+                            600: '#262a36',
+                            500: '#363c4d'
+                        },
+                        accent: {
+                            cyan: '#00f2fe',
+                            blue: '#4facfe',
+                            purple: '#7f00ff',
+                            magenta: '#ff007f'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0b0e;
+            color: #e2e8f0;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #12141a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #262a36;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #363c4d;
+        }
+
+        .canvas-container {
+            cursor: default;
+            background-image: 
+                radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0);
+            background-size: 24px 24px;
+        }
+
+        /* Neon Glow Effects */
+        .glow-accent {
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.25);
+        }
+        .glow-magenta {
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.25);
+        }
+
+        /* Range Slider Styling */
+        input[type=range] {
+            accent-color: #00f2fe;
+        }
+
+        /* Modal backdrop blur */
+        .backdrop-blur-custom {
+            backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col antialiased select-none">
+
+    <!-- Top Navigation / Header -->
+    <header id="app-header" class="h-14 bg-dark-800 border-b border-dark-600 px-4 flex items-center justify-between z-30 shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-accent-purple to-accent-cyan flex items-center justify-center shadow-lg">
+                <i class="fa-solid fa-cube text-white text-sm"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-sm tracking-wide bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">LuminaMap Pro</h1>
+                <p class="text-[10px] text-gray-400">Projection Mapping Studio v2.5</p>
+            </div>
+        </div>
+
+        <!-- Middle Tools Controls -->
+        <div class="flex items-center space-x-1 bg-dark-900 p-1 rounded-lg border border-dark-600">
+            <button id="btn-add-surface" class="px-3 py-1.5 text-xs font-medium bg-dark-700 hover:bg-dark-600 text-cyan-400 rounded transition flex items-center space-x-1.5" title="新規サーフェス追加">
+                <i class="fa-solid fa-plus"></i>
+                <span>サーフェス追加</span>
+            </button>
+            <div class="h-4 w-px bg-dark-600 my-auto"></div>
+            <button id="btn-toggle-grid" class="px-3 py-1.5 text-xs font-medium text-gray-300 hover:text-white hover:bg-dark-700 rounded transition flex items-center space-x-1.5" title="キャリブレーションテストパターン">
+                <i class="fa-solid fa-border-all"></i>
+                <span>テストパターン</span>
+            </button>
+            <button id="btn-toggle-bg" class="px-3 py-1.5 text-xs font-medium text-gray-300 hover:text-white hover:bg-dark-700 rounded transition flex items-center space-x-1.5" title="背景シミュレーションオブジェクト切替">
+                <i class="fa-solid fa-mountain-sun"></i>
+                <span id="bg-mode-label">デモ対象: Box</span>
+            </button>
+            <button id="btn-snap-toggle" class="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-dark-700 rounded transition flex items-center space-x-1.5" title="頂点スナップ (吸着)">
+                <i class="fa-solid fa-magnet"></i>
+                <span id="snap-label">スナップ: OFF</span>
+            </button>
+        </div>
+
+        <!-- Right Quick Actions -->
+        <div class="flex items-center space-x-2">
+            <button id="btn-preset-load" class="p-2 text-gray-400 hover:text-white hover:bg-dark-700 rounded-lg transition" title="プリセット読込">
+                <i class="fa-solid fa-folder-open text-sm"></i>
+            </button>
+            <button id="btn-preset-save" class="p-2 text-gray-400 hover:text-white hover:bg-dark-700 rounded-lg transition" title="設定保存 (JSON)">
+                <i class="fa-solid fa-floppy-disk text-sm"></i>
+            </button>
+            <input type="file" id="preset-file-input" class="hidden" accept=".json">
+
+            <div class="h-4 w-px bg-dark-600 my-auto"></div>
+
+            <button id="btn-blackout" class="px-3 py-1.5 text-xs font-medium bg-red-950/50 hover:bg-red-900/80 text-red-300 border border-red-800/50 rounded-lg transition flex items-center space-x-1" title="ブラックアウト (Space)">
+                <i class="fa-solid fa-power-off"></i>
+                <span>Blackout</span>
+            </button>
+            <button id="btn-fullscreen" class="px-3 py-1.5 text-xs font-medium bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition flex items-center space-x-1 shadow-lg shadow-cyan-950/50" title="全画面投影 (F)">
+                <i class="fa-solid fa-expand"></i>
+                <span>投影モード (F)</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace Area -->
+    <div class="flex-1 flex overflow-hidden relative">
+        
+        <!-- Left Sidebar: Surface List & Layers -->
+        <aside id="sidebar-left" class="w-64 bg-dark-800 border-r border-dark-600 flex flex-col shrink-0 z-20 transition-all duration-300">
+            <div class="p-3 border-b border-dark-600 flex justify-between items-center bg-dark-900/50">
+                <span class="text-xs font-semibold tracking-wider text-gray-400 uppercase flex items-center gap-1.5">
+                    <i class="fa-solid fa-layer-group text-cyan-400"></i> サーフェス一覧
+                </span>
+                <span id="surface-count" class="text-[10px] bg-dark-600 text-gray-300 px-1.5 py-0.5 rounded-full font-mono">0</span>
+            </div>
+
+            <!-- Surface List Container -->
+            <div id="surface-list" class="flex-1 overflow-y-auto p-2 space-y-2">
+                <!-- Surface Item Template (Dynamic JS Populated) -->
+            </div>
+
+            <!-- Preset Selector Block -->
+            <div class="p-3 border-t border-dark-600 bg-dark-900/30">
+                <label class="text-[11px] font-medium text-gray-400 block mb-1">サンプル・プリセット</label>
+                <select id="preset-selector" class="w-full bg-dark-700 border border-dark-500 text-gray-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-500">
+                    <option value="cube">3D Cube (立体ボックス投影)</option>
+                    <option value="building">Building Front (建造物ファサード)</option>
+                    <option value="arch">Dual Arch (2連アーチ壁面)</option>
+                    <option value="quad_grid">4-Quad Stage (4画面ステージ)</option>
+                </select>
+            </div>
+        </aside>
+
+        <!-- Center Canvas / Projection Viewport -->
+        <main class="flex-1 relative bg-dark-900 flex items-center justify-center overflow-hidden canvas-container" id="viewport">
+            
+            <!-- Canvas Object -->
+            <canvas id="main-canvas" class="shadow-2xl border border-dark-700/50 rounded"></canvas>
+
+            <!-- Keyboard Controls Quick Guide Overlay -->
+            <div id="ui-overlay-info" class="absolute bottom-3 left-3 bg-dark-800/80 backdrop-blur border border-dark-600 text-gray-400 text-[11px] px-3 py-2 rounded-lg pointer-events-none transition-opacity duration-300">
+                <div class="flex items-center space-x-3">
+                    <span><kbd class="bg-dark-600 text-gray-200 px-1 rounded">Tab</kbd> UI切替</span>
+                    <span><kbd class="bg-dark-600 text-gray-200 px-1 rounded">F</kbd> 全画面投影</span>
+                    <span><kbd class="bg-dark-600 text-gray-200 px-1 rounded">Space</kbd> 消灯</span>
+                    <span><kbd class="bg-dark-600 text-gray-200 px-1 rounded">Del</kbd> 削除</span>
+                </div>
+            </div>
+
+            <!-- Magnifier / Vertex Zoom Loupe Indicator -->
+            <div id="loupe" class="absolute pointer-events-none w-24 h-24 rounded-full border-2 border-cyan-400 shadow-xl overflow-hidden hidden bg-black z-40">
+                <canvas id="loupe-canvas" class="w-full h-full"></canvas>
+            </div>
+
+            <!-- Notification Toast -->
+            <div id="toast" class="absolute top-4 bg-dark-700 text-white text-xs px-4 py-2 rounded-lg border border-cyan-500/50 shadow-xl transition-all duration-300 -translate-y-12 opacity-0 pointer-events-none z-50 flex items-center space-x-2">
+                <i class="fa-solid fa-circle-info text-cyan-400"></i>
+                <span id="toast-message">Message</span>
+            </div>
+        </main>
+
+        <!-- Right Sidebar: Properties & FX Inspector -->
+        <aside id="sidebar-right" class="w-72 bg-dark-800 border-l border-dark-600 flex flex-col shrink-0 z-20">
+            <div class="p-3 border-b border-dark-600 bg-dark-900/50">
+                <span class="text-xs font-semibold tracking-wider text-gray-400 uppercase flex items-center gap-1.5">
+                    <i class="fa-solid fa-sliders text-cyan-400"></i> サーフェス設定 & エフェクト
+                </span>
+            </div>
+
+            <div id="inspector-content" class="flex-1 overflow-y-auto p-3 space-y-4 text-xs">
+                <!-- Dynamic Content or Empty State -->
+                <div id="inspector-empty" class="h-full flex flex-col items-center justify-center text-gray-500 text-center p-4">
+                    <i class="fa-solid fa-vector-square text-3xl mb-2 text-dark-600"></i>
+                    <p>サーフェスを選択してパラメータを設定してください</p>
+                </div>
+
+                <div id="inspector-panel" class="space-y-4 hidden">
+                    
+                    <!-- Basic Info & Label -->
+                    <div class="bg-dark-700/50 p-2.5 rounded-lg border border-dark-600 space-y-2">
+                        <label class="text-gray-400 text-[11px] font-medium block">サーフェス名</label>
+                        <input type="text" id="prop-label" class="w-full bg-dark-800 border border-dark-500 text-white px-2 py-1.5 rounded focus:border-cyan-500 focus:outline-none">
+                    </div>
+
+                    <!-- Visual Pattern Effect Selector -->
+                    <div class="bg-dark-700/50 p-2.5 rounded-lg border border-dark-600 space-y-2">
+                        <label class="text-gray-400 text-[11px] font-medium block">映像エフェクトソース</label>
+                        <select id="prop-effect" class="w-full bg-dark-800 border border-dark-500 text-white px-2 py-1.5 rounded focus:border-cyan-500 focus:outline-none">
+                            <option value="neon_grid">サイバーネオン・グリッド</option>
+                            <option value="particle_tunnel">パーティクル・ワープ</option>
+                            <option value="kinetic_waves">キネティック・ウェーブ</option>
+                            <option value="kaleidoscope">幾何学ポリゴン万華鏡</option>
+                            <option value="matrix">デジタル・マトリックス</option>
+                            <option value="audio_sim">オーディオ・ビジュアライザー</option>
+                            <option value="media">カスタムメディア (画像/動画)</option>
+                        </select>
+
+                        <!-- Custom Media Upload (Hidden by default unless selected) -->
+                        <div id="media-upload-box" class="mt-2 hidden border-2 border-dashed border-dark-500 hover:border-cyan-500 rounded-lg p-3 text-center cursor-pointer transition">
+                            <i class="fa-solid fa-cloud-arrow-up text-lg text-gray-400 mb-1"></i>
+                            <p class="text-[10px] text-gray-400">画像・動画ファイルをドラッグ＆ドロップまたはクリック</p>
+                            <input type="file" id="media-file-input" class="hidden" accept="image/*,video/*">
+                            <span id="media-file-name" class="text-[10px] text-cyan-400 font-mono block mt-1 truncate"></span>
+                        </div>
+                    </div>
+
+                    <!-- Mesh Resolution -->
+                    <div class="bg-dark-700/50 p-2.5 rounded-lg border border-dark-600 space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-gray-400 text-[11px] font-medium">メッシュ分割精度 (Warp Grid)</label>
+                            <span id="mesh-res-val" class="font-mono text-cyan-400 text-[11px]">4x4</span>
+                        </div>
+                        <input type="range" id="prop-mesh-res" min="2" max="10" step="1" value="4" class="w-full">
+                        <p class="text-[10px] text-gray-500">※曲面や細かな歪み補正を行う場合は精度を上げます</p>
+                    </div>
+
+                    <!-- Effect Parameters (Color, Speed, Brightness) -->
+                    <div class="bg-dark-700/50 p-2.5 rounded-lg border border-dark-600 space-y-3">
+                        <span class="text-gray-300 text-[11px] font-semibold block">パラメータ微調整</span>
+                        
+                        <div>
+                            <div class="flex justify-between text-[11px] text-gray-400 mb-1">
+                                <span>プライマリカラー</span>
+                            </div>
+                            <div class="flex space-x-2">
+                                <input type="color" id="prop-color1" value="#00f2fe" class="w-8 h-8 rounded bg-transparent cursor-pointer border-0">
+                                <input type="color" id="prop-color2" value="#7f00ff" class="w-8 h-8 rounded bg-transparent cursor-pointer border-0">
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-[11px] text-gray-400 mb-1">
+                                <span>アニメーション速度</span>
+                                <span id="speed-val" class="font-mono text-gray-300">1.0x</span>
+                            </div>
+                            <input type="range" id="prop-speed" min="0.1" max="3" step="0.1" value="1" class="w-full">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-[11px] text-gray-400 mb-1">
+                                <span>明るさ (Brightness)</span>
+                                <span id="bright-val" class="font-mono text-gray-300">100%</span>
+                            </div>
+                            <input type="range" id="prop-bright" min="0" max="200" step="5" value="100" class="w-full">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-[11px] text-gray-400 mb-1">
+                                <span>不透明度 (Opacity)</span>
+                                <span id="alpha-val" class="font-mono text-gray-300">100%</span>
+                            </div>
+                            <input type="range" id="prop-alpha" min="0" max="1" step="0.05" value="1" class="w-full">
+                        </div>
+                    </div>
+
+                    <!-- Warp Quick Actions -->
+                    <div class="space-y-2 pt-2">
+                        <button id="btn-reset-warp" class="w-full py-1.5 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded text-xs transition border border-dark-500">
+                            <i class="fa-solid fa-rotate-left mr-1"></i> 変形を初期化 (Reset Warp)
+                        </button>
+                        <button id="btn-delete-surface" class="w-full py-1.5 bg-red-950/60 hover:bg-red-900 text-red-400 rounded text-xs transition border border-red-900/50">
+                            <i class="fa-solid fa-trash mr-1"></i> サーフェスを削除
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </aside>
+
+    </div>
+
+    <script>
+        /**
+         * LuminaMap Pro Core Application Logic
+         */
+        const CANVAS_WIDTH = 1920;
+        const CANVAS_HEIGHT = 1080;
+
+        // Global State
+        const state = {
+            surfaces: [],
+            selectedSurfaceId: null,
+            activeVertex: null, // { surfaceId, uIndex, vIndex }
+            isDragging: false,
+            showGrid: false,
+            bgMode: 'box', // 'box', 'building', 'arch', 'none'
+            blackout: false,
+            snapToGrid: false,
+            snapThreshold: 12,
+            uiVisible: true,
+            time: 0
+        };
+
+        // Offscreen canvas for generative texture rendering
+        const offscreenCanvas = document.createElement('canvas');
+        offscreenCanvas.width = 512;
+        offscreenCanvas.height = 512;
+        const offCtx = offscreenCanvas.getContext('2d');
+
+        // Main Viewport Canvas Setup
+        const canvas = document.getElementById('main-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = CANVAS_WIDTH;
+        canvas.height = CANVAS_HEIGHT;
+
+        // Loupe Canvas
+        const loupeCanvas = document.getElementById('loupe-canvas');
+        const loupeCtx = loupeCanvas.getContext('2d');
+        loupeCanvas.width = 120;
+        loupeCanvas.height = 120;
+
+        /**
+         * Surface Class representing a mapped quad polygon with mesh subdivision
+         */
+        class Surface {
+            constructor(id, label, x, y, width, height) {
+                this.id = id || 'surf_' + Math.random().toString(36).substr(2, 9);
+                this.label = label || 'Surface ' + (state.surfaces.length + 1);
+                this.gridCols = 4;
+                this.gridRows = 4;
+                
+                // 4 Corners: [Top-Left, Top-Right, Bottom-Right, Bottom-Left]
+                this.corners = [
+                    { x: x, y: y },
+                    { x: x + width, y: y },
+                    { x: x + width, y: y + height },
+                    { x: x, y: y + height }
+                ];
+
+                // Subdivided Mesh Grid Points (Normalized UV based)
+                this.mesh = [];
+                this.updateMeshGrid();
+
+                // FX Options
+                this.effect = 'neon_grid';
+                this.color1 = '#00f2fe';
+                this.color2 = '#7f00ff';
+                this.speed = 1.0;
+                this.brightness = 100;
+                this.alpha = 1.0;
+                
+                // Media Element if loaded
+                this.mediaElement = null;
+                this.mediaType = null; // 'image' or 'video'
+            }
+
+            /**
+             * Recomputes interior grid vertices using Bilinear Interpolation based on 4 corners
+             */
+            updateMeshGrid() {
+                const cols = this.gridCols;
+                const rows = this.gridRows;
+                this.mesh = [];
+
+                for (let r = 0; r <= rows; r++) {
+                    const v = r / rows;
+                    this.mesh[r] = [];
+                    for (let c = 0; c <= cols; c++) {
+                        const u = c / cols;
+                        
+                        // Bilinear Interpolation formula for 4 points
+                        const pTL = this.corners[0];
+                        const pTR = this.corners[1];
+                        const pBR = this.corners[2];
+                        const pBL = this.corners[3];
+
+                        const x = (1 - u) * (1 - v) * pTL.x + u * (1 - v) * pTR.x + u * v * pBR.x + (1 - u) * v * pBL.x;
+                        const y = (1 - u) * (1 - v) * pTL.y + u * (1 - v) * pTR.y + u * v * pBR.y + (1 - u) * v * pBL.y;
+
+                        this.mesh[r][c] = { x, y, u, v };
+                    }
+                }
+            }
+
+            resetWarp() {
+                const minX = Math.min(...this.corners.map(p => p.x));
+                const maxX = Math.max(...this.corners.map(p => p.x));
+                const minY = Math.min(...this.corners.map(p => p.y));
+                const maxY = Math.max(...this.corners.map(p => p.y));
+                const w = maxX - minX;
+                const h = maxY - minY;
+
+                this.corners = [
+                    { x: minX, y: minY },
+                    { x: minX + w, y: minY },
+                    { x: minX + w, y: minY + h },
+                    { x: minX, y: minY + h }
+                ];
+                this.updateMeshGrid();
+            }
+        }
+
+        /**
+         * Generates visual patterns onto offscreen canvas for texture mapping
+         */
+        function renderEffectToOffscreen(surface, time) {
+            const w = offscreenCanvas.width;
+            const h = offscreenCanvas.height;
+            const t = time * surface.speed;
+
+            offCtx.save();
+            offCtx.fillStyle = '#000000';
+            offCtx.fillRect(0, 0, w, h);
+
+            switch (surface.effect) {
+                case 'neon_grid': {
+                    offCtx.lineWidth = 4;
+                    const gridSize = 40;
+                    const shift = (t * 50) % gridSize;
+
+                    // Grid Background
+                    offCtx.strokeStyle = surface.color1;
+                    offCtx.globalAlpha = 0.4;
+                    for (let x = 0; x <= w; x += gridSize) {
+                        offCtx.beginPath();
+                        offCtx.moveTo(x, 0);
+                        offCtx.lineTo(x, h);
+                        offCtx.stroke();
+                    }
+                    for (let y = shift; y <= h; y += gridSize) {
+                        offCtx.beginPath();
+                        offCtx.moveTo(0, y);
+                        offCtx.lineTo(w, y);
+                        offCtx.stroke();
+                    }
+
+                    // Pulse Circles
+                    offCtx.globalAlpha = 0.8;
+                    offCtx.strokeStyle = surface.color2;
+                    const r = (Math.sin(t * 2) * 0.5 + 0.5) * (w * 0.4) + 20;
+                    offCtx.beginPath();
+                    offCtx.arc(w / 2, h / 2, r, 0, Math.PI * 2);
+                    offCtx.stroke();
+                    break;
+                }
+
+                case 'particle_tunnel': {
+                    offCtx.fillStyle = surface.color1;
+                    const cx = w / 2;
+                    const cy = h / 2;
+                    const count = 60;
+
+                    for (let i = 0; i < count; i++) {
+                        const angle = (i / count) * Math.PI * 2 + t * 0.2;
+                        const dist = ((t * 150 + i * 20) % (w * 0.6));
+                        const px = cx + Math.cos(angle) * dist;
+                        const py = cy + Math.sin(angle) * dist;
+                        const size = (dist / (w * 0.6)) * 8 + 1;
+
+                        offCtx.globalAlpha = dist / (w * 0.6);
+                        offCtx.beginPath();
+                        offCtx.arc(px, py, size, 0, Math.PI * 2);
+                        offCtx.fill();
+                    }
+                    break;
+                }
+
+                case 'kinetic_waves': {
+                    offCtx.lineWidth = 6;
+                    const lines = 12;
+                    for (let i = 0; i < lines; i++) {
+                        offCtx.strokeStyle = i % 2 === 0 ? surface.color1 : surface.color2;
+                        offCtx.beginPath();
+                        for (let x = 0; x <= w; x += 10) {
+                            const y = h / 2 + Math.sin(x * 0.02 + t * 3 + i * 0.5) * 60 + (i - lines / 2) * 25;
+                            if (x === 0) offCtx.moveTo(x, y);
+                            else offCtx.lineTo(x, y);
+                        }
+                        offCtx.stroke();
+                    }
+                    break;
+                }
+
+                case 'kaleidoscope': {
+                    const cx = w / 2;
+                    const cy = h / 2;
+                    const sides = 8;
+                    offCtx.save();
+                    offCtx.translate(cx, cy);
+
+                    for (let i = 0; i < sides; i++) {
+                        offCtx.rotate((Math.PI * 2) / sides);
+                        offCtx.fillStyle = i % 2 === 0 ? surface.color1 : surface.color2;
+                        offCtx.globalAlpha = 0.7;
+
+                        const scale = Math.sin(t * 2 + i) * 30 + 50;
+                        offCtx.beginPath();
+                        offCtx.moveTo(0, 0);
+                        offCtx.lineTo(scale, scale * 1.5);
+                        offCtx.lineTo(scale * 1.5, scale);
+                        offCtx.closePath();
+                        offCtx.fill();
+                    }
+                    offCtx.restore();
+                    break;
+                }
+
+                case 'matrix': {
+                    offCtx.fillStyle = '#00ff66';
+                    offCtx.font = '14px monospace';
+                    const cols = 20;
+                    const colW = w / cols;
+                    for (let i = 0; i < cols; i++) {
+                        const y = ((t * 200 + i * 80) % h);
+                        const char = String.fromCharCode(0x30A0 + (i * 7) % 96);
+                        offCtx.fillText(char, i * colW + 4, y);
+                    }
+                    break;
+                }
+
+                case 'audio_sim': {
+                    const bars = 24;
+                    const barW = w / bars;
+                    for (let i = 0; i < bars; i++) {
+                        const hFactor = Math.sin(t * 5 + i * 0.8) * 0.4 + 0.5;
+                        const barH = hFactor * h * 0.8;
+                        const grad = offCtx.createLinearGradient(0, h, 0, 0);
+                        grad.addColorStop(0, surface.color1);
+                        grad.addColorStop(1, surface.color2);
+
+                        offCtx.fillStyle = grad;
+                        offCtx.fillRect(i * barW + 2, h - barH, barW - 4, barH);
+                    }
+                    break;
+                }
+
+                case 'media': {
+                    if (surface.mediaElement) {
+                        try {
+                            offCtx.drawImage(surface.mediaElement, 0, 0, w, h);
+                        } catch (e) {
+                            // Fallback placeholder
+                            offCtx.fillStyle = '#333';
+                            offCtx.fillRect(0, 0, w, h);
+                            offCtx.fillStyle = '#fff';
+                            offCtx.fillText('No Media Loaded', 20, 20);
+                        }
+                    } else {
+                        offCtx.fillStyle = '#222';
+                        offCtx.fillRect(0, 0, w, h);
+                        offCtx.fillStyle = '#888';
+                        offCtx.font = '16px sans-serif';
+                        offCtx.textAlign = 'center';
+                        offCtx.fillText('Drag & Drop Media File', w / 2, h / 2);
+                    }
+                    break;
+                }
+            }
+
+            // Brightness filter adjustment
+            if (surface.brightness !== 100) {
+                offCtx.fillStyle = surface.brightness > 100 ? 'rgba(255,255,255,' + ((surface.brightness - 100) / 100) + ')' : 'rgba(0,0,0,' + ((100 - surface.brightness) / 100) + ')';
+                offCtx.fillRect(0, 0, w, h);
+            }
+
+            offCtx.restore();
+        }
+
+        /**
+         * Renders texture warped across subdivided mesh grid using Affine Triangle Transforms
+         */
+        function renderSubdividedMesh(surface) {
+            const rows = surface.gridRows;
+            const cols = surface.gridCols;
+            const mesh = surface.mesh;
+
+            ctx.save();
+            ctx.globalAlpha = surface.alpha;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const p0 = mesh[r][c];         // TL
+                    const p1 = mesh[r][c + 1];     // TR
+                    const p2 = mesh[r + 1][c + 1]; // BR
+                    const p3 = mesh[r + 1][c];     // BL
+
+                    // Source UV Coordinates on offscreen canvas
+                    const u0 = p0.u * offscreenCanvas.width, v0 = p0.v * offscreenCanvas.height;
+                    const u1 = p1.u * offscreenCanvas.width, v1 = p1.v * offscreenCanvas.height;
+                    const u2 = p2.u * offscreenCanvas.width, v2 = p2.v * offscreenCanvas.height;
+                    const u3 = p3.u * offscreenCanvas.width, v3 = p3.v * offscreenCanvas.height;
+
+                    // Triangle 1 (TL -> TR -> BL)
+                    drawTexturedTriangle(
+                        offscreenCanvas,
+                        u0, v0, u1, v1, u3, v3,
+                        p0.x, p0.y, p1.x, p1.y, p3.x, p3.y
+                    );
+
+                    // Triangle 2 (TR -> BR -> BL)
+                    drawTexturedTriangle(
+                        offscreenCanvas,
+                        u1, v1, u2, v2, u3, v3,
+                        p1.x, p1.y, p2.x, p2.y, p3.x, p3.y
+                    );
+                }
+            }
+
+            ctx.restore();
+        }
+
+        /**
+         * Affine transformation triangle mapping from source image to destination canvas
+         */
+        function drawTexturedTriangle(img, x0, y0, x1, y1, x2, y2, sx0, sy0, sx1, sy1, sx2, sy2) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(sx0, sy0);
+            ctx.lineTo(sx1, sy1);
+            ctx.lineTo(sx2, sy2);
+            ctx.closePath();
+            ctx.clip();
+
+            // Calculate matrix coefficients
+            const denom = (x0 * (y2 - y1) - x1 * y2 + x2 * y1 + (x1 - x2) * y0);
+            if (Math.abs(denom) < 0.0001) {
+                ctx.restore();
+                return;
+            }
+
+            const m11 = -(y0 * (sx2 - sx1) - y1 * sx2 + y2 * sx1 + (y1 - y2) * sx0) / denom;
+            const m12 = (y0 * (sy2 - sy1) - y1 * sy2 + y2 * sy1 + (y1 - y2) * sy0) / denom;
+            const m21 = (x0 * (sx2 - sx1) - x1 * sx2 + x2 * sx1 + (x1 - x2) * sx0) / denom;
+            const m22 = -(x0 * (sy2 - sy1) - x1 * sy2 + x2 * sy1 + (x1 - x2) * sy0) / denom;
+            const dx = (x0 * (y2 * sx1 - y1 * sx2) + y0 * (x1 * sx2 - x2 * sx1) + (x2 * y1 - x1 * y2) * sx0) / denom;
+            const dy = (x0 * (y2 * sy1 - y1 * sy2) + y0 * (x1 * sy2 - x2 * sy1) + (x2 * y1 - x1 * y2) * sy0) / denom;
+
+            ctx.transform(m11, m12, m21, m22, dx, dy);
+            ctx.drawImage(img, 0, 0);
+            ctx.restore();
+        }
+
+        /**
+         * Draws realistic background mock object structures for testing mapping
+         */
+        function drawBackgroundSimulation() {
+            if (state.bgMode === 'none') return;
+
+            ctx.save();
+            ctx.strokeStyle = '#262a36';
+            ctx.lineWidth = 2;
+            ctx.fillStyle = '#0f1117';
+
+            if (state.bgMode === 'box') {
+                // 3D Isometric Cube Outline
+                const cx = CANVAS_WIDTH / 2;
+                const cy = CANVAS_HEIGHT / 2 + 50;
+                const size = 260;
+
+                // Front Face
+                ctx.fillStyle = '#161922';
+                ctx.beginPath();
+                ctx.rect(cx - size / 2, cy - size / 2, size, size);
+                ctx.fill(); ctx.stroke();
+
+                // Top Face
+                ctx.fillStyle = '#1c202c';
+                ctx.beginPath();
+                ctx.moveTo(cx - size / 2, cy - size / 2);
+                ctx.lineTo(cx - size / 2 + 100, cy - size / 2 - 100);
+                ctx.lineTo(cx + size / 2 + 100, cy - size / 2 - 100);
+                ctx.lineTo(cx + size / 2, cy - size / 2);
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+
+                // Right Face
+                ctx.fillStyle = '#12141c';
+                ctx.beginPath();
+                ctx.moveTo(cx + size / 2, cy - size / 2);
+                ctx.lineTo(cx + size / 2 + 100, cy - size / 2 - 100);
+                ctx.lineTo(cx + size / 2 + 100, cy + size / 2 - 100);
+                ctx.lineTo(cx + size / 2, cy + size / 2);
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+
+            } else if (state.bgMode === 'building') {
+                // Building Facade
+                ctx.fillStyle = '#12141a';
+                ctx.fillRect(300, 200, 1320, 700);
+                ctx.strokeRect(300, 200, 1320, 700);
+
+                // Windows Grid Outline
+                ctx.strokeStyle = '#1e222e';
+                for (let x = 360; x < 1550; x += 180) {
+                    for (let y = 260; y < 800; y += 150) {
+                        ctx.strokeRect(x, y, 120, 90);
+                    }
+                }
+            } else if (state.bgMode === 'arch') {
+                // Dual Arch Walls
+                ctx.fillStyle = '#151821';
+                // Arch 1
+                ctx.beginPath();
+                ctx.arc(600, 550, 200, Math.PI, 0, false);
+                ctx.rect(400, 550, 400, 350);
+                ctx.fill(); ctx.stroke();
+
+                // Arch 2
+                ctx.beginPath();
+                ctx.arc(1320, 550, 200, Math.PI, 0, false);
+                ctx.rect(1120, 550, 400, 350);
+                ctx.fill(); ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        /**
+         * Renders control points, handles, grid wireframes, and test patterns
+         */
+        function renderUIOverlays() {
+            if (!state.uiVisible) return;
+
+            // Calibration Pattern Overlay
+            if (state.showGrid) {
+                ctx.save();
+                ctx.strokeStyle = 'rgba(0, 242, 254, 0.25)';
+                ctx.lineWidth = 1;
+
+                // Crosshair Grid
+                for (let x = 0; x < CANVAS_WIDTH; x += 60) {
+                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_HEIGHT); ctx.stroke();
+                }
+                for (let y = 0; y < CANVAS_HEIGHT; y += 60) {
+                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_WIDTH, y); ctx.stroke();
+                }
+
+                // Center Cross
+                ctx.strokeStyle = '#ff007f';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(CANVAS_WIDTH / 2, 0); ctx.lineTo(CANVAS_WIDTH / 2, CANVAS_HEIGHT);
+                ctx.moveTo(0, CANVAS_HEIGHT / 2); ctx.lineTo(CANVAS_WIDTH, CANVAS_HEIGHT / 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Surface Wireframe and Handles
+            state.surfaces.forEach(surface => {
+                const isSelected = surface.id === state.selectedSurfaceId;
+
+                // Draw Mesh Lines
+                ctx.save();
+                ctx.strokeStyle = isSelected ? 'rgba(0, 242, 254, 0.8)' : 'rgba(255, 255, 255, 0.25)';
+                ctx.lineWidth = isSelected ? 1.5 : 1;
+
+                const mesh = surface.mesh;
+                for (let r = 0; r <= surface.gridRows; r++) {
+                    ctx.beginPath();
+                    for (let c = 0; c <= surface.gridCols; c++) {
+                        const pt = mesh[r][c];
+                        if (c === 0) ctx.moveTo(pt.x, pt.y);
+                        else ctx.lineTo(pt.x, pt.y);
+                    }
+                    ctx.stroke();
+                }
+                for (let c = 0; c <= surface.gridCols; c++) {
+                    ctx.beginPath();
+                    for (let r = 0; r <= surface.gridRows; r++) {
+                        const pt = mesh[r][c];
+                        if (r === 0) ctx.moveTo(pt.x, pt.y);
+                        else ctx.lineTo(pt.x, pt.y);
+                    }
+                    ctx.stroke();
+                }
+
+                // Draw Vertex Control Handles
+                for (let r = 0; r <= surface.gridRows; r++) {
+                    for (let c = 0; c <= surface.gridCols; c++) {
+                        const pt = mesh[r][c];
+                        const isCorner = (r === 0 || r === surface.gridRows) && (c === 0 || c === surface.gridCols);
+
+                        if (isSelected || isCorner) {
+                            ctx.beginPath();
+                            const radius = isCorner ? 6 : 3.5;
+                            ctx.arc(pt.x, pt.y, radius, 0, Math.PI * 2);
+
+                            if (isCorner) {
+                                ctx.fillStyle = isSelected ? '#00f2fe' : '#ffffff';
+                                ctx.strokeStyle = '#000000';
+                                ctx.lineWidth = 2;
+                            } else {
+                                ctx.fillStyle = '#ff007f';
+                                ctx.strokeStyle = '#ffffff';
+                                ctx.lineWidth = 1;
+                            }
+
+                            ctx.fill();
+                            ctx.stroke();
+                        }
+                    }
+                }
+
+                // Label on surface center
+                const p0 = surface.corners[0];
+                const p2 = surface.corners[2];
+                const cx = (p0.x + p2.x) / 2;
+                const cy = (p0.y + p2.y) / 2;
+
+                ctx.font = 'bold 12px Inter, sans-serif';
+                ctx.fillStyle = isSelected ? '#00f2fe' : 'rgba(255, 255, 255, 0.7)';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(surface.label, cx, cy);
+
+                ctx.restore();
+            });
+        }
+
+        /**
+         * Main Render Loop
+         */
+        function animate() {
+            state.time += 0.016;
+
+            // Clear Canvas
+            ctx.fillStyle = '#0a0b0e';
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+            if (!state.blackout) {
+                // 1. Render Background Simulation Object
+                drawBackgroundSimulation();
+
+                // 2. Render Mapped Surfaces with FX
+                state.surfaces.forEach(surface => {
+                    renderEffectToOffscreen(surface, state.time);
+                    renderSubdividedMesh(surface);
+                });
+            } else {
+                // Blackout Mode Indicator
+                ctx.fillStyle = '#ff0055';
+                ctx.font = 'bold 16px Inter';
+                ctx.fillText('BLACKOUT ACTIVE', 30, 40);
+            }
+
+            // 3. Render Overlays / Handles
+            renderUIOverlays();
+
+            requestAnimationFrame(animate);
+        }
+
+        /**
+         * Canvas Coordinates Helpers & Magnifier Loupe
+         */
+        function getCanvasPoint(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        }
+
+        function updateLoupe(x, y, clientX, clientY) {
+            const loupe = document.getElementById('loupe');
+            if (!state.isDragging) {
+                loupe.classList.add('hidden');
+                return;
+            }
+
+            loupe.classList.remove('hidden');
+            loupe.style.left = (clientX + 15) + 'px';
+            loupe.style.top = (clientY - 100) + 'px';
+
+            loupeCtx.fillStyle = '#000';
+            loupeCtx.fillRect(0, 0, 120, 120);
+            loupeCtx.drawImage(
+                canvas,
+                x - 30, y - 30, 60, 60,
+                0, 0, 120, 120
+            );
+
+            // Loupe Crosshair
+            loupeCtx.strokeStyle = '#00f2fe';
+            loupeCtx.lineWidth = 1;
+            loupeCtx.beginPath();
+            loupeCtx.moveTo(60, 0); loupeCtx.lineTo(60, 120);
+            loupeCtx.moveTo(0, 60); loupeCtx.lineTo(120, 60);
+            loupeCtx.stroke();
+        }
+
+        // Pointer Down Handler
+        canvas.addEventListener('mousedown', (e) => {
+            const pt = getCanvasPoint(e);
+            let hitFound = false;
+
+            // Iterate reverse to select top surface first
+            for (let i = state.surfaces.length - 1; i >= 0; i--) {
+                const surface = state.surfaces[i];
+                const mesh = surface.mesh;
+
+                // Check vertices hit
+                for (let r = 0; r <= surface.gridRows; r++) {
+                    for (let c = 0; c <= surface.gridCols; c++) {
+                        const v = mesh[r][c];
+                        const dist = Math.hypot(v.x - pt.x, v.y - pt.y);
+
+                        if (dist < 12) {
+                            state.selectedSurfaceId = surface.id;
+                            state.activeVertex = { surfaceId: surface.id, r, c };
+                            state.isDragging = true;
+                            hitFound = true;
+                            updateInspector();
+                            updateSurfaceListUI();
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // If no vertex hit, check if point inside bounding box of surface
+            if (!hitFound) {
+                for (let i = state.surfaces.length - 1; i >= 0; i--) {
+                    const surface = state.surfaces[i];
+                    if (isPointInQuad(pt, surface.corners)) {
+                        state.selectedSurfaceId = surface.id;
+                        hitFound = true;
+                        updateInspector();
+                        updateSurfaceListUI();
+                        break;
+                    }
+                }
+            }
+
+            if (!hitFound) {
+                state.selectedSurfaceId = null;
+                updateInspector();
+                updateSurfaceListUI();
+            }
+        });
+
+        // Mouse Move Drag Handler
+        canvas.addEventListener('mousemove', (e) => {
+            if (!state.isDragging || !state.activeVertex) return;
+
+            const pt = getCanvasPoint(e);
+            const surface = state.surfaces.find(s => s.id === state.activeVertex.surfaceId);
+            if (!surface) return;
+
+            const { r, c } = state.activeVertex;
+
+            // Snap logic
+            if (state.snapToGrid) {
+                state.surfaces.forEach(other => {
+                    if (other.id === surface.id) return;
+                    other.mesh.forEach(row => row.forEach(v => {
+                        if (Math.abs(v.x - pt.x) < state.snapThreshold) pt.x = v.x;
+                        if (Math.abs(v.y - pt.y) < state.snapThreshold) pt.y = v.y;
+                    }));
+                });
+            }
+
+            // Corner Vertex update
+            if (r === 0 && c === 0) surface.corners[0] = { x: pt.x, y: pt.y };
+            else if (r === 0 && c === surface.gridCols) surface.corners[1] = { x: pt.x, y: pt.y };
+            else if (r === surface.gridRows && c === surface.gridCols) surface.corners[2] = { x: pt.x, y: pt.y };
+            else if (r === surface.gridRows && c === 0) surface.corners[3] = { x: pt.x, y: pt.y };
+
+            // Update mesh point
+            surface.mesh[r][c].x = pt.x;
+            surface.mesh[r][c].y = pt.y;
+
+            // Update Bilinear Grid for corner changes
+            if ((r === 0 || r === surface.gridRows) && (c === 0 || c === surface.gridCols)) {
+                surface.updateMeshGrid();
+            }
+
+            updateLoupe(pt.x, pt.y, e.clientX, e.clientY);
+        });
+
+        window.addEventListener('mouseup', () => {
+            state.isDragging = false;
+            state.activeVertex = null;
+            document.getElementById('loupe').classList.add('hidden');
+        });
+
+        function isPointInQuad(p, corners) {
+            let inside = false;
+            for (let i = 0, j = corners.length - 1; i < corners.length; j = i++) {
+                const xi = corners[i].x, yi = corners[i].y;
+                const xj = corners[j].x, yj = corners[j].y;
+                const intersect = ((yi > p.y) !== (yj > p.y)) && (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+        /**
+         * Updates Left Sidebar Surface List UI
+         */
+        function updateSurfaceListUI() {
+            const list = document.getElementById('surface-list');
+            const count = document.getElementById('surface-count');
+            list.innerHTML = '';
+            count.innerText = state.surfaces.length;
+
+            state.surfaces.forEach((surface, idx) => {
+                const isSelected = surface.id === state.selectedSurfaceId;
+                const item = document.createElement('div');
+                item.className = `p-2.5 rounded-lg border transition cursor-pointer flex items-center justify-between ${
+                    isSelected ? 'bg-dark-700 border-cyan-500/80 shadow-md' : 'bg-dark-900/60 border-dark-600 hover:border-dark-500'
+                }`;
+
+                item.innerHTML = `
+                    <div class="flex items-center space-x-2.5 truncate">
+                        <span class="w-2 h-2 rounded-full ${isSelected ? 'bg-cyan-400' : 'bg-gray-500'}"></span>
+                        <span class="text-xs font-medium ${isSelected ? 'text-white' : 'text-gray-300'} truncate">${surface.label}</span>
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        <button class="btn-hide p-1 text-gray-500 hover:text-gray-300"><i class="fa-solid fa-eye text-[11px]"></i></button>
+                    </div>
+                `;
+
+                item.addEventListener('click', () => {
+                    state.selectedSurfaceId = surface.id;
+                    updateInspector();
+                    updateSurfaceListUI();
+                });
+
+                list.appendChild(item);
+            });
+        }
+
+        /**
+         * Updates Right Inspector Properties Panel
+         */
+        function updateInspector() {
+            const emptyState = document.getElementById('inspector-empty');
+            const panel = document.getElementById('inspector-panel');
+
+            const surface = state.surfaces.find(s => s.id === state.selectedSurfaceId);
+
+            if (!surface) {
+                emptyState.classList.remove('hidden');
+                panel.classList.add('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            panel.classList.remove('hidden');
+
+            document.getElementById('prop-label').value = surface.label;
+            document.getElementById('prop-effect').value = surface.effect;
+            document.getElementById('prop-mesh-res').value = surface.gridCols;
+            document.getElementById('mesh-res-val').innerText = `${surface.gridCols}x${surface.gridRows}`;
+            document.getElementById('prop-color1').value = surface.color1;
+            document.getElementById('prop-color2').value = surface.color2;
+            document.getElementById('prop-speed').value = surface.speed;
+            document.getElementById('speed-val').innerText = `${surface.speed}x`;
+            document.getElementById('prop-bright').value = surface.brightness;
+            document.getElementById('bright-val').innerText = `${surface.brightness}%`;
+            document.getElementById('prop-alpha').value = surface.alpha;
+            document.getElementById('alpha-val').innerText = `${Math.round(surface.alpha * 100)}%`;
+
+            // Media Box toggle
+            const mediaBox = document.getElementById('media-upload-box');
+            if (surface.effect === 'media') mediaBox.classList.remove('hidden');
+            else mediaBox.classList.add('hidden');
+        }
+
+        /**
+         * Presets Setup
+         */
+        function loadPreset(presetKey) {
+            state.surfaces = [];
+
+            if (presetKey === 'cube') {
+                state.bgMode = 'box';
+                // Top Face
+                const s1 = new Surface('s_top', 'Top Face', 860, 390, 260, 260);
+                s1.corners = [{x: 860, y: 390}, {x: 960, y: 290}, {x: 1220, y: 290}, {x: 1120, y: 390}];
+                s1.effect = 'neon_grid';
+                s1.color1 = '#00f2fe'; s1.color2 = '#7f00ff';
+                s1.updateMeshGrid();
+
+                // Front Face
+                const s2 = new Surface('s_front', 'Front Face', 860, 390, 260, 260);
+                s2.effect = 'kinetic_waves';
+                s2.color1 = '#ff007f'; s2.color2 = '#00f2fe';
+                s2.updateMeshGrid();
+
+                // Right Face
+                const s3 = new Surface('s_right', 'Right Face', 1120, 390, 260, 260);
+                s3.corners = [{x: 1120, y: 390}, {x: 1220, y: 290}, {x: 1220, y: 550}, {x: 1120, y: 650}];
+                s3.effect = 'kaleidoscope';
+                s3.updateMeshGrid();
+
+                state.surfaces.push(s1, s2, s3);
+
+            } else if (presetKey === 'building') {
+                state.bgMode = 'building';
+                const s1 = new Surface('s_bldg', 'Facade Main', 300, 200, 1320, 700);
+                s1.effect = 'matrix';
+                s1.updateMeshGrid();
+                state.surfaces.push(s1);
+
+            } else if (presetKey === 'arch') {
+                state.bgMode = 'arch';
+                const s1 = new Surface('s_arch1', 'Arch Left', 400, 350, 400, 550);
+                s1.effect = 'particle_tunnel';
+                const s2 = new Surface('s_arch2', 'Arch Right', 1120, 350, 400, 550);
+                s2.effect = 'audio_sim';
+                state.surfaces.push(s1, s2);
+            }
+
+            state.selectedSurfaceId = state.surfaces[0]?.id || null;
+            updateInspector();
+            updateSurfaceListUI();
+            showToast('プリセットを読み込みました: ' + presetKey);
+        }
+
+        /**
+         * Notification Toast
+         */
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = msg;
+            toast.classList.remove('-translate-y-12', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('-translate-y-12', 'opacity-0');
+            }, 2500);
+        }
+
+        // Attach DOM Listeners
+        document.getElementById('btn-add-surface').addEventListener('click', () => {
+            const surf = new Surface(null, null, 760, 440, 400, 300);
+            state.surfaces.push(surf);
+            state.selectedSurfaceId = surf.id;
+            updateInspector();
+            updateSurfaceListUI();
+            showToast('新規サーフェスを追加しました');
+        });
+
+        document.getElementById('btn-toggle-grid').addEventListener('click', () => {
+            state.showGrid = !state.showGrid;
+            showToast(state.showGrid ? 'テストパターン: ON' : 'テストパターン: OFF');
+        });
+
+        document.getElementById('btn-toggle-bg').addEventListener('click', () => {
+            const modes = ['box', 'building', 'arch', 'none'];
+            const idx = (modes.indexOf(state.bgMode) + 1) % modes.length;
+            state.bgMode = modes[idx];
+            document.getElementById('bg-mode-label').innerText = 'デモ対象: ' + state.bgMode.toUpperCase();
+        });
+
+        document.getElementById('btn-snap-toggle').addEventListener('click', () => {
+            state.snapToGrid = !state.snapToGrid;
+            document.getElementById('snap-label').innerText = 'スナップ: ' + (state.snapToGrid ? 'ON' : 'OFF');
+            showToast(state.snapToGrid ? '吸着スナップ有効' : '吸着スナップ無効');
+        });
+
+        document.getElementById('btn-blackout').addEventListener('click', () => {
+            state.blackout = !state.blackout;
+            showToast(state.blackout ? 'ブラックアウト ON' : 'ブラックアウト OFF');
+        });
+
+        document.getElementById('btn-fullscreen').addEventListener('click', toggleFullScreen);
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => showToast('フルスクリーンエラー'));
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        // Inspector Bindings
+        document.getElementById('prop-label').addEventListener('input', (e) => {
+            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
+            if (surf) { surf.label = e.target.value; updateSurfaceListUI(); }
+        });
+
+        document.getElementById('prop-effect').addEventListener('change', (e) => {
+            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
+            if (surf) { surf.effect = e.target.value; updateInspector(); }
+        });
+
+        document.getElementById('prop-mesh-res').addEventListener('input', (e) => {
+            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
+            if (surf) {
+                const val = parseInt(e.target.value);
+                surf.gridCols = val;
+                surf.gridRows = val;
+                surf.updateMeshGrid();
+                document.getElementById('mesh-res-val').innerText = `${val}x${val}`;
+            }
+        });
+
+        document.getElementById('prop-color1').addEventListener('input', (e) => {
+            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
+            if (surf) surf.color1 = e.target.value;
+        });
+
+        document.getElementById('prop-color2').addEventListener('input', (e) => {
+            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
+            if (surf) surf.color2 = e.target.value;
+        });
+
+        document.getElementById('prop-speed').addEventListener('input', (e) => {
+            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
+            if (surf) {
+                surf.speed = parseFloat(e.target.value);
+                document.getElementById('speed-val').innerText = `${surf.speed}x`;
+            }
+        });
+
+        document.getElementById('prop-bright').addEventListener('input', (e) => {
+            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
+            if (surf) {
+                surf.brightness = parseInt(e.target.value);
+                document.getElementById('bright-val').innerText = `${surf.brightness}%`;
+            }
+        });
+
+        document.getElementById('prop-alpha').addEventListener('input', (e) => {
+            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
+            if (surf) {
+                surf.alpha = parseFloat(e.target.value);
+                document.getElementById('alpha-val').innerText = `${Math.round(surf.alpha * 100)}%`;
+            }
+        });
+
+        document.getElementById('btn-reset-warp').addEventListener('click', () => {
+            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
+            if (surf) { surf.resetWarp(); showToast('メッシュ変形をリセットしました'); }
+        });
+
+        document.getElementById('btn-delete-surface').addEventListener('click', () => {
+            if (!state.selectedSurfaceId) return;
+            state.surfaces = state.surfaces.filter(s => s.id !== state.selectedSurfaceId);
+            state.selectedSurfaceId = state.surfaces[0]?.id || null;
+            updateInspector();
+            updateSurfaceListUI();
+            showToast('サーフェスを削除しました');
+        });
+
+        // Preset Selector Listener
+        document.getElementById('preset-selector').addEventListener('change', (e) => {
+            loadPreset(e.target.value);
+        });
+
+        // Save & Load JSON
+        document.getElementById('btn-preset-save').addEventListener('click', () => {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.surfaces));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "projection_mapping_config.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast('設定JSONを保存しました');
+        });
+
+        document.getElementById('btn-preset-load').addEventListener('click', () => {
+            document.getElementById('preset-file-input').click();
+        });
+
+        document.getElementById('preset-file-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const parsed = JSON.parse(event.target.result);
+                    state.surfaces = parsed.map(sData => {
+                        const s = new Surface(sData.id, sData.label, 0, 0, 100, 100);
+                        Object.assign(s, sData);
+                        s.updateMeshGrid();
+                        return s;
+                    });
+                    state.selectedSurfaceId = state.surfaces[0]?.id || null;
+                    updateInspector();
+                    updateSurfaceListUI();
+                    showToast('設定JSONを読み込みました');
+                } catch (err) {
+                    showToast('JSON読み込み失敗');
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // Custom Media File Upload
+        const mediaBox = document.getElementById('media-upload-box');
+        const mediaInput = document.getElementById('media-file-input');
+
+        mediaBox.addEventListener('click', () => mediaInput.click());
+        mediaInput.addEventListener('change', (e) => handleMediaFile(e.target.files[0]));
+
+        mediaBox.addEventListener('dragover', (e) => { e.preventDefault(); mediaBox.classList.add('border-cyan-400'); });
+        mediaBox.addEventListener('dragleave', () => mediaBox.classList.remove('border-cyan-400'));
+        mediaBox.addEventListener('drop', (e) => {
+            e.preventDefault();
+            mediaBox.classList.remove('border-cyan-400');
+            if (e.dataTransfer.files.length > 0) handleMediaFile(e.dataTransfer.files[0]);
+        });
+
+        function handleMediaFile(file) {
+            if (!file) return;
+            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
+            if (!surf) return;
+
+            const url = URL.createObjectURL(file);
+            document.getElementById('media-file-name').innerText = file.name;
+
+            if (file.type.startsWith('image/')) {
+                const img = new Image();
+                img.onload = () => { surf.mediaElement = img; surf.mediaType = 'image'; };
+                img.src = url;
+            } else if (file.type.startsWith('video/')) {
+                const video = document.createElement('video');
+                video.autoplay = true;
+                video.loop = true;
+                video.muted = true;
+                video.src = url;
+                video.play();
+                surf.mediaElement = video;
+                surf.mediaType = 'video';
+            }
+            showToast('メディアファイルを読み込みました');
+        }
+
+        // Global Keyboard Shortcuts
+        window.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                state.uiVisible = !state.uiVisible;
+                document.getElementById('app-header').classList.toggle('hidden');
+                document.getElementById('sidebar-left').classList.toggle('hidden');
+                document.getElementById('sidebar-right').classList.toggle('hidden');
+                document.getElementById('ui-overlay-info').classList.toggle('hidden');
+            } else if (e.key === 'f' || e.key === 'F') {
+                toggleFullScreen();
+            } else if (e.key === ' ') {
+                e.preventDefault();
+                state.blackout = !state.blackout;
+                showToast(state.blackout ? 'Blackout' : 'Restored');
+            } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (state.selectedSurfaceId) {
+                    document.getElementById('btn-delete-surface').click();
+                }
+            }
+        });
+
+        // Responsive Canvas Scaling
+        function resizeCanvasToViewport() {
+            const viewport = document.getElementById('viewport');
+            const aspect = CANVAS_WIDTH / CANVAS_HEIGHT;
+            let w = viewport.clientWidth - 20;
+            let h = w / aspect;
+
+            if (h > viewport.clientHeight - 20) {
+                h = viewport.clientHeight - 20;
+                w = h * aspect;
+            }
+
+            canvas.style.width = `${w}px`;
+            canvas.style.height = `${h}px`;
+        }
+
+        window.addEventListener('resize', resizeCanvasToViewport);
+
+        // Application Initialization Entry
+        window.onload = function() {
+            resizeCanvasToViewport();
+            loadPreset('cube');
+            animate();
+        };
+    </script>
+</body>
+</html>
