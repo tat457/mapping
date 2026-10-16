@@ -1,1649 +1,1823 @@
 <!DOCTYPE html>
-<html lang="ja" class="dark">
+<html lang="ja" class="h-full bg-slate-950 text-slate-100">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LuminaMap Pro - Projection Mapping Studio</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Inter Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        dark: {
-                            900: '#0a0b0e',
-                            800: '#12141a',
-                            700: '#1a1d26',
-                            600: '#262a36',
-                            500: '#363c4d'
-                        },
-                        accent: {
-                            cyan: '#00f2fe',
-                            blue: '#4facfe',
-                            purple: '#7f00ff',
-                            magenta: '#ff007f'
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace']
-                    }
-                }
-            }
-        }
-    </script>
-
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #0a0b0e;
-            color: #e2e8f0;
-            overflow: hidden;
-            user-select: none;
-        }
-
-        /* Custom Scrollbars */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #12141a;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #262a36;
-            border-radius: 3px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #363c4d;
-        }
-
-        .canvas-container {
-            cursor: default;
-            background-image: 
-                radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0);
-            background-size: 24px 24px;
-        }
-
-        /* Neon Glow Effects */
-        .glow-accent {
-            box-shadow: 0 0 15px rgba(0, 242, 254, 0.25);
-        }
-        .glow-magenta {
-            box-shadow: 0 0 15px rgba(255, 0, 127, 0.25);
-        }
-
-        /* Range Slider Styling */
-        input[type=range] {
-            accent-color: #00f2fe;
-        }
-
-        /* Modal backdrop blur */
-        .backdrop-blur-custom {
-            backdrop-filter: blur(8px);
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Projection Mapping Studio - Lazy Lighting Edition</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    .no-select {
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .bg-checkerboard {
+      background-color: #0f172a;
+      background-image: 
+        linear-gradient(45deg, #1e293b 25%, transparent 25%),
+        linear-gradient(-45deg, #1e293b 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #1e293b 75%),
+        linear-gradient(-45deg, transparent 75%, #1e293b 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    }
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    .scrollbar-none::-webkit-scrollbar {
+      display: none;
+    }
+    .scrollbar-none {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.4); }
+      50% { box-shadow: 0 0 25px rgba(236, 72, 153, 0.7); }
+    }
+    .glow-active {
+      animation: pulse-glow 2s infinite;
+    }
+  </style>
 </head>
-<body class="h-screen w-screen flex flex-col antialiased select-none">
+<body class="h-full flex flex-col font-sans overflow-hidden no-select">
 
-    <!-- Top Navigation / Header -->
-    <header id="app-header" class="h-14 bg-dark-800 border-b border-dark-600 px-4 flex items-center justify-between z-30 shrink-0">
-        <div class="flex items-center space-x-3">
-            <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-accent-purple to-accent-cyan flex items-center justify-center shadow-lg">
-                <i class="fa-solid fa-cube text-white text-sm"></i>
-            </div>
-            <div>
-                <h1 class="font-bold text-sm tracking-wide bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">LuminaMap Pro</h1>
-                <p class="text-[10px] text-gray-400">Projection Mapping Studio v2.5</p>
-            </div>
+  <!-- 上部ヘッダー（見切れ防止 & 左右スクロール切り替え構造） -->
+  <header class="bg-slate-900 border-b border-slate-800 flex flex-col shrink-0 z-20 shadow-md">
+    
+    <!-- 1段目: タイトル ＆ メイン操作コントロール (横スクロール対応) -->
+    <div class="h-12 px-3 flex items-center justify-between gap-3 overflow-x-auto scrollbar-none border-b border-slate-800/60 shrink-0">
+      
+      <!-- ロゴ＆タイトル -->
+      <div class="flex items-center space-x-2 shrink-0">
+        <div class="p-1.5 bg-gradient-to-tr from-indigo-600 to-pink-500 rounded-lg shadow-lg shadow-indigo-500/30">
+          <i data-lucide="sparkles" class="w-4 h-4 text-white"></i>
+        </div>
+        <div>
+          <h1 class="text-sm font-bold tracking-wide text-white leading-tight flex items-center gap-1.5">
+            Projection Studio <span class="text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1 py-0.2 rounded uppercase font-mono">Lazy Mode</span>
+          </h1>
+        </div>
+      </div>
+
+      <!-- ツール＆表示切り替えボタン群 (折り返さずスクロール可能) -->
+      <div class="flex items-center space-x-2 shrink-0 text-xs">
+        <!-- アニメーション一時停止/再生 -->
+        <button id="btn-toggle-animation" class="px-2.5 py-1 font-medium rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1 transition whitespace-nowrap" title="アニメーションの一時停止/再生 (Pキー)">
+          <i data-lucide="pause" class="w-3.5 h-3.5 text-purple-400" id="anim-icon"></i>
+          <span id="anim-status-text">アニメ: ON</span>
+        </button>
+
+        <!-- マイク音波リアクティブ切り替え -->
+        <button id="btn-audio-reactive" class="px-2.5 py-1 font-medium rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1 transition whitespace-nowrap">
+          <i data-lucide="mic" class="w-3.5 h-3.5 text-emerald-400" id="mic-icon"></i>
+          <span id="mic-status-text">マイク連動: OFF</span>
+        </button>
+
+        <!-- テストパターン切り替え -->
+        <button id="btn-test-pattern" class="px-2.5 py-1 font-medium rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1 transition whitespace-nowrap">
+          <i data-lucide="grid" class="w-3.5 h-3.5 text-indigo-400"></i>
+          <span>テストパターン</span>
+        </button>
+
+        <div class="h-4 w-px bg-slate-700 mx-0.5"></div>
+
+        <!-- 保存 / 読込 -->
+        <button id="btn-export" class="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700" title="プロジェクト出力(JSON)">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i>
+        </button>
+        <button id="btn-import" class="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700" title="プロジェクト読み込み">
+          <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+        </button>
+        <input type="file" id="file-import-input" accept=".json" class="hidden">
+
+        <!-- サイドバー開閉 -->
+        <button id="btn-toggle-left" class="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700" title="左パネル表示切替">
+          <i data-lucide="panel-left" class="w-3.5 h-3.5"></i>
+        </button>
+        <button id="btn-toggle-right" class="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700" title="右パネル表示切替">
+          <i data-lucide="panel-right" class="w-3.5 h-3.5"></i>
+        </button>
+
+        <div class="h-4 w-px bg-slate-700 mx-0.5"></div>
+
+        <!-- ズーム/表示サイズ調整 -->
+        <div class="flex items-center bg-slate-800/90 rounded border border-slate-700 px-1 py-0.5 space-x-1 text-slate-300">
+          <button id="btn-zoom-out" class="p-0.5 hover:text-white rounded hover:bg-slate-700" title="縮小"><i data-lucide="zoom-out" class="w-3 h-3"></i></button>
+          <span id="zoom-level" class="font-mono text-[10px] min-w-[2.2rem] text-center">100%</span>
+          <button id="btn-zoom-in" class="p-0.5 hover:text-white rounded hover:bg-slate-700" title="拡大"><i data-lucide="zoom-in" class="w-3 h-3"></i></button>
+          <button id="btn-zoom-reset" class="px-1.5 py-0.5 rounded bg-indigo-600/80 hover:bg-indigo-600 text-white font-medium text-[9px] transition" title="画面サイズに最適化">フィット</button>
         </div>
 
-        <!-- Middle Tools Controls -->
-        <div class="flex items-center space-x-1 bg-dark-900 p-1 rounded-lg border border-dark-600">
-            <button id="btn-add-surface" class="px-3 py-1.5 text-xs font-medium bg-dark-700 hover:bg-dark-600 text-cyan-400 rounded transition flex items-center space-x-1.5" title="新規サーフェス追加">
-                <i class="fa-solid fa-plus"></i>
-                <span>サーフェス追加</span>
-            </button>
-            <div class="h-4 w-px bg-dark-600 my-auto"></div>
-            <button id="btn-toggle-grid" class="px-3 py-1.5 text-xs font-medium text-gray-300 hover:text-white hover:bg-dark-700 rounded transition flex items-center space-x-1.5" title="キャリブレーションテストパターン">
-                <i class="fa-solid fa-border-all"></i>
-                <span>テストパターン</span>
-            </button>
-            <button id="btn-toggle-bg" class="px-3 py-1.5 text-xs font-medium text-gray-300 hover:text-white hover:bg-dark-700 rounded transition flex items-center space-x-1.5" title="背景シミュレーションオブジェクト切替">
-                <i class="fa-solid fa-mountain-sun"></i>
-                <span id="bg-mode-label">デモ対象: Box</span>
-            </button>
-            <button id="btn-snap-toggle" class="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-dark-700 rounded transition flex items-center space-x-1.5" title="頂点スナップ (吸着)">
-                <i class="fa-solid fa-magnet"></i>
-                <span id="snap-label">スナップ: OFF</span>
-            </button>
-        </div>
+        <div class="h-4 w-px bg-slate-700 mx-0.5"></div>
 
-        <!-- Right Quick Actions -->
-        <div class="flex items-center space-x-2">
-            <button id="btn-preset-load" class="p-2 text-gray-400 hover:text-white hover:bg-dark-700 rounded-lg transition" title="プリセット読込">
-                <i class="fa-solid fa-folder-open text-sm"></i>
-            </button>
-            <button id="btn-preset-save" class="p-2 text-gray-400 hover:text-white hover:bg-dark-700 rounded-lg transition" title="設定保存 (JSON)">
-                <i class="fa-solid fa-floppy-disk text-sm"></i>
-            </button>
-            <input type="file" id="preset-file-input" class="hidden" accept=".json">
-
-            <div class="h-4 w-px bg-dark-600 my-auto"></div>
-
-            <button id="btn-blackout" class="px-3 py-1.5 text-xs font-medium bg-red-950/50 hover:bg-red-900/80 text-red-300 border border-red-800/50 rounded-lg transition flex items-center space-x-1" title="ブラックアウト (Space)">
-                <i class="fa-solid fa-power-off"></i>
-                <span>Blackout</span>
-            </button>
-            <button id="btn-fullscreen" class="px-3 py-1.5 text-xs font-medium bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition flex items-center space-x-1 shadow-lg shadow-cyan-950/50" title="全画面投影 (F)">
-                <i class="fa-solid fa-expand"></i>
-                <span>投影モード (F)</span>
-            </button>
-        </div>
-    </header>
-
-    <!-- Main Workspace Area -->
-    <div class="flex-1 flex overflow-hidden relative">
-        
-        <!-- Left Sidebar: Surface List & Layers -->
-        <aside id="sidebar-left" class="w-64 bg-dark-800 border-r border-dark-600 flex flex-col shrink-0 z-20 transition-all duration-300">
-            <div class="p-3 border-b border-dark-600 flex justify-between items-center bg-dark-900/50">
-                <span class="text-xs font-semibold tracking-wider text-gray-400 uppercase flex items-center gap-1.5">
-                    <i class="fa-solid fa-layer-group text-cyan-400"></i> サーフェス一覧
-                </span>
-                <span id="surface-count" class="text-[10px] bg-dark-600 text-gray-300 px-1.5 py-0.5 rounded-full font-mono">0</span>
-            </div>
-
-            <!-- Surface List Container -->
-            <div id="surface-list" class="flex-1 overflow-y-auto p-2 space-y-2">
-                <!-- Surface Item Template (Dynamic JS Populated) -->
-            </div>
-
-            <!-- Preset Selector Block -->
-            <div class="p-3 border-t border-dark-600 bg-dark-900/30">
-                <label class="text-[11px] font-medium text-gray-400 block mb-1">サンプル・プリセット</label>
-                <select id="preset-selector" class="w-full bg-dark-700 border border-dark-500 text-gray-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-500">
-                    <option value="cube">3D Cube (立体ボックス投影)</option>
-                    <option value="building">Building Front (建造物ファサード)</option>
-                    <option value="arch">Dual Arch (2連アーチ壁面)</option>
-                    <option value="teamlab">✨ teamLab Immersive (デジタルアート空間)</option>
-                </select>
-            </div>
-        </aside>
-
-        <!-- Center Canvas / Projection Viewport -->
-        <main class="flex-1 relative bg-dark-900 flex items-center justify-center overflow-hidden canvas-container" id="viewport">
-            
-            <!-- Canvas Object -->
-            <canvas id="main-canvas" class="shadow-2xl border border-dark-700/50 rounded"></canvas>
-
-            <!-- Keyboard Controls Quick Guide Overlay -->
-            <div id="ui-overlay-info" class="absolute bottom-3 left-3 bg-dark-800/80 backdrop-blur border border-dark-600 text-gray-400 text-[11px] px-3 py-2 rounded-lg pointer-events-none transition-opacity duration-300">
-                <div class="flex items-center space-x-3">
-                    <span><kbd class="bg-dark-600 text-gray-200 px-1 rounded">Tab</kbd> UI切替</span>
-                    <span><kbd class="bg-dark-600 text-gray-200 px-1 rounded">F</kbd> 全画面投影</span>
-                    <span><kbd class="bg-dark-600 text-gray-200 px-1 rounded">Space</kbd> 消灯</span>
-                    <span><kbd class="bg-dark-600 text-gray-200 px-1 rounded">Del</kbd> 削除</span>
-                </div>
-            </div>
-
-            <!-- Magnifier / Vertex Zoom Loupe Indicator -->
-            <div id="loupe" class="absolute pointer-events-none w-24 h-24 rounded-full border-2 border-cyan-400 shadow-xl overflow-hidden hidden bg-black z-40">
-                <canvas id="loupe-canvas" class="w-full h-full"></canvas>
-            </div>
-
-            <!-- Notification Toast -->
-            <div id="toast" class="absolute top-4 bg-dark-700 text-white text-xs px-4 py-2 rounded-lg border border-cyan-500/50 shadow-xl transition-all duration-300 -translate-y-12 opacity-0 pointer-events-none z-50 flex items-center space-x-2">
-                <i class="fa-solid fa-circle-info text-cyan-400"></i>
-                <span id="toast-message">Message</span>
-            </div>
-        </main>
-
-        <!-- Right Sidebar: Properties & FX Inspector -->
-        <aside id="sidebar-right" class="w-72 bg-dark-800 border-l border-dark-600 flex flex-col shrink-0 z-20">
-            <div class="p-3 border-b border-dark-600 bg-dark-900/50">
-                <span class="text-xs font-semibold tracking-wider text-gray-400 uppercase flex items-center gap-1.5">
-                    <i class="fa-solid fa-sliders text-cyan-400"></i> サーフェス設定 & エフェクト
-                </span>
-            </div>
-
-            <div id="inspector-content" class="flex-1 overflow-y-auto p-3 space-y-4 text-xs">
-                <!-- Dynamic Content or Empty State -->
-                <div id="inspector-empty" class="h-full flex flex-col items-center justify-center text-gray-500 text-center p-4">
-                    <i class="fa-solid fa-vector-square text-3xl mb-2 text-dark-600"></i>
-                    <p>サーフェスを選択してパラメータを設定してください</p>
-                </div>
-
-                <div id="inspector-panel" class="space-y-4 hidden">
-                    
-                    <!-- Basic Info & Label -->
-                    <div class="bg-dark-700/50 p-2.5 rounded-lg border border-dark-600 space-y-2">
-                        <label class="text-gray-400 text-[11px] font-medium block">サーフェス名</label>
-                        <input type="text" id="prop-label" class="w-full bg-dark-800 border border-dark-500 text-white px-2 py-1.5 rounded focus:border-cyan-500 focus:outline-none">
-                    </div>
-
-                    <!-- Visual Pattern Effect Selector -->
-                    <div class="bg-dark-700/50 p-2.5 rounded-lg border border-dark-600 space-y-2">
-                        <label class="text-gray-400 text-[11px] font-medium block">映像エフェクトソース</label>
-                        <select id="prop-effect" class="w-full bg-dark-800 border border-dark-500 text-white px-2 py-1.5 rounded focus:border-cyan-500 focus:outline-none">
-                            <optgroup label="✨ teamLab風デジタルアート">
-                                <option value="teamlab_flowers">華の流転 (Flowers & Bloom)</option>
-                                <option value="teamlab_crystal">クリスタル・ユニバース (Crystal Universe)</option>
-                                <option value="teamlab_swarming">光の魚群 (Light Swarm & Koi)</option>
-                                <option value="teamlab_fluid">光と色彩の流体 (Interactive Fluid)</option>
-                            </optgroup>
-                            <optgroup label="スタンダードエフェクト">
-                                <option value="neon_grid">サイバーネオン・グリッド</option>
-                                <option value="particle_tunnel">パーティクル・ワープ</option>
-                                <option value="kinetic_waves">キネティック・ウェーブ</option>
-                                <option value="kaleidoscope">幾何学ポリゴン万華鏡</option>
-                                <option value="matrix">デジタル・マトリックス</option>
-                                <option value="audio_sim">オーディオ・ビジュアライザー</option>
-                                <option value="media">カスタムメディア (画像/動画)</option>
-                            </optgroup>
-                        </select>
-
-                        <!-- Custom Media Upload (Hidden by default unless selected) -->
-                        <div id="media-upload-box" class="mt-2 hidden border-2 border-dashed border-dark-500 hover:border-cyan-500 rounded-lg p-3 text-center cursor-pointer transition">
-                            <i class="fa-solid fa-cloud-arrow-up text-lg text-gray-400 mb-1"></i>
-                            <p class="text-[10px] text-gray-400">画像・動画ファイルをドラッグ＆ドロップまたはクリック</p>
-                            <input type="file" id="media-file-input" class="hidden" accept="image/*,video/*">
-                            <span id="media-file-name" class="text-[10px] text-cyan-400 font-mono block mt-1 truncate"></span>
-                        </div>
-                    </div>
-
-                    <!-- Mesh Resolution -->
-                    <div class="bg-dark-700/50 p-2.5 rounded-lg border border-dark-600 space-y-2">
-                        <div class="flex justify-between items-center">
-                            <label class="text-gray-400 text-[11px] font-medium">メッシュ分割精度 (Warp Grid)</label>
-                            <span id="mesh-res-val" class="font-mono text-cyan-400 text-[11px]">4x4</span>
-                        </div>
-                        <input type="range" id="prop-mesh-res" min="2" max="10" step="1" value="4" class="w-full">
-                        <p class="text-[10px] text-gray-500">※曲面や細かな歪み補正を行う場合は精度を上げます</p>
-                    </div>
-
-                    <!-- Effect Parameters (Color, Speed, Brightness) -->
-                    <div class="bg-dark-700/50 p-2.5 rounded-lg border border-dark-600 space-y-3">
-                        <span class="text-gray-300 text-[11px] font-semibold block">パラメータ微調整</span>
-                        
-                        <div>
-                            <div class="flex justify-between text-[11px] text-gray-400 mb-1">
-                                <span>プライマリカラー</span>
-                            </div>
-                            <div class="flex space-x-2">
-                                <input type="color" id="prop-color1" value="#00f2fe" class="w-8 h-8 rounded bg-transparent cursor-pointer border-0">
-                                <input type="color" id="prop-color2" value="#7f00ff" class="w-8 h-8 rounded bg-transparent cursor-pointer border-0">
-                            </div>
-                        </div>
-
-                        <div>
-                            <div class="flex justify-between text-[11px] text-gray-400 mb-1">
-                                <span>アニメーション速度</span>
-                                <span id="speed-val" class="font-mono text-gray-300">1.0x</span>
-                            </div>
-                            <input type="range" id="prop-speed" min="0.1" max="3" step="0.1" value="1" class="w-full">
-                        </div>
-
-                        <div>
-                            <div class="flex justify-between text-[11px] text-gray-400 mb-1">
-                                <span>明るさ (Brightness)</span>
-                                <span id="bright-val" class="font-mono text-gray-300">100%</span>
-                            </div>
-                            <input type="range" id="prop-bright" min="0" max="200" step="5" value="100" class="w-full">
-                        </div>
-
-                        <div>
-                            <div class="flex justify-between text-[11px] text-gray-400 mb-1">
-                                <span>不透明度 (Opacity)</span>
-                                <span id="alpha-val" class="font-mono text-gray-300">100%</span>
-                            </div>
-                            <input type="range" id="prop-alpha" min="0" max="1" step="0.05" value="1" class="w-full">
-                        </div>
-                    </div>
-
-                    <!-- Warp Quick Actions -->
-                    <div class="space-y-2 pt-2">
-                        <button id="btn-reset-warp" class="w-full py-1.5 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded text-xs transition border border-dark-500">
-                            <i class="fa-solid fa-rotate-left mr-1"></i> 変形を初期化 (Reset Warp)
-                        </button>
-                        <button id="btn-delete-surface" class="w-full py-1.5 bg-red-950/60 hover:bg-red-900 text-red-400 rounded text-xs transition border border-red-900/50">
-                            <i class="fa-solid fa-trash mr-1"></i> サーフェスを削除
-                        </button>
-                    </div>
-
-                </div>
-            </div>
-        </aside>
-
+        <!-- 投影ウィンドウ起動 / フルスクリーン -->
+        <button id="btn-popout" class="px-2.5 py-1 font-medium rounded bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 flex items-center gap-1 transition whitespace-nowrap">
+          <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+          <span>別窓投影</span>
+        </button>
+        <button id="btn-project" class="px-3 py-1 font-bold rounded bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:to-pink-600 text-white shadow flex items-center gap-1 transition whitespace-nowrap">
+          <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>
+          <span>全画面投影 (F11/Esc)</span>
+        </button>
+      </div>
     </div>
 
-    <script>
-        /**
-         * LuminaMap Pro Core Application Logic
-         */
-        const CANVAS_WIDTH = 1920;
-        const CANVAS_HEIGHT = 1080;
+    <!-- 2段目: 左右スクロール連動プリセット/シーン・セレクター -->
+    <div class="relative flex items-center bg-slate-950/90 px-2 py-1.5 border-t border-slate-800/80">
+      <!-- スクロール左ボタン -->
+      <button id="btn-preset-scroll-left" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 shadow shrink-0 z-10 mr-1" title="左へスクロール">
+        <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+      </button>
 
-        // Global State
-        const state = {
-            surfaces: [],
-            selectedSurfaceId: null,
-            activeVertex: null, // { surfaceId, r, c }
-            isDragging: false,
-            showGrid: false,
-            bgMode: 'box', // 'box', 'building', 'arch', 'none'
-            blackout: false,
-            snapToGrid: false,
-            snapThreshold: 12,
-            uiVisible: true,
-            time: 0
-        };
+      <!-- 左右スクロールコンテナ (スクロール位置に応じてシーンが切り替わります) -->
+      <div id="preset-scroll-container" class="flex items-center space-x-2 overflow-x-auto scrollbar-none py-0.5 px-1 scroll-smooth snap-x snap-mandatory flex-1 min-w-0">
+        <!-- JSで動的にプリセットチップを挿入 -->
+      </div>
 
-        // Offscreen canvas for generative texture rendering
-        const offscreenCanvas = document.createElement('canvas');
-        offscreenCanvas.width = 512;
-        offscreenCanvas.height = 512;
-        const offCtx = offscreenCanvas.getContext('2d');
+      <!-- スクロール右ボタン -->
+      <button id="btn-preset-scroll-right" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 shadow shrink-0 z-10 ml-1" title="右へスクロール">
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
 
-        // Main Viewport Canvas Setup
-        const canvas = document.getElementById('main-canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = CANVAS_WIDTH;
-        canvas.height = CANVAS_HEIGHT;
+  </header>
 
-        // Loupe Canvas
-        const loupeCanvas = document.getElementById('loupe-canvas');
-        const loupeCtx = loupeCanvas.getContext('2d');
-        loupeCanvas.width = 120;
-        loupeCanvas.height = 120;
+  <!-- メインワークスペース -->
+  <div class="flex-1 flex overflow-hidden relative min-h-0">
 
-        /**
-         * Surface Class representing a mapped quad polygon with mesh subdivision
-         */
-        class Surface {
-            constructor(id, label, x, y, width, height) {
-                this.id = id || 'surf_' + Math.random().toString(36).substr(2, 9);
-                this.label = label || 'Surface ' + (state.surfaces.length + 1);
-                this.gridCols = 4;
-                this.gridRows = 4;
-                
-                // 4 Corners: [Top-Left, Top-Right, Bottom-Right, Bottom-Left]
-                this.corners = [
-                    { x: x, y: y },
-                    { x: x + width, y: y },
-                    { x: x + width, y: y + height },
-                    { x: x, y: y + height }
-                ];
+    <!-- 左サイドバー: サーフェス/レイヤー管理 -->
+    <aside id="left-sidebar" class="w-56 lg:w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-10 shrink-0 transition-all duration-200">
+      <div class="p-3 border-b border-slate-800 flex items-center justify-between">
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+          <i data-lucide="layers" class="w-4 h-4 text-indigo-400"></i> 面 (Surfaces)
+        </span>
+        <div class="flex gap-1">
+          <button id="btn-add-surface" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded flex items-center gap-1 transition">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i> 四角形
+          </button>
+          <button id="btn-add-circle" class="px-2 py-1 bg-pink-600 hover:bg-pink-500 text-white text-xs font-medium rounded flex items-center gap-1 transition" title="円形サーフェスを追加">
+            <i data-lucide="circle" class="w-3.5 h-3.5"></i> 円形
+          </button>
+        </div>
+      </div>
 
-                // Subdivided Mesh Grid Points (Normalized UV based)
-                this.mesh = [];
-                this.updateMeshGrid();
+      <!-- 面リスト -->
+      <div id="surface-list" class="flex-1 overflow-y-auto p-2 space-y-2">
+        <!-- JSで動的生成 -->
+      </div>
 
-                // FX Options
-                this.effect = 'neon_grid';
-                this.color1 = '#00f2fe';
-                this.color2 = '#7f00ff';
-                this.speed = 1.0;
-                this.brightness = 100;
-                this.alpha = 1.0;
-                
-                // Media Element if loaded
-                this.mediaElement = null;
-                this.mediaType = null; // 'image' or 'video'
+      <!-- VJ / 音声感度設定 -->
+      <div class="p-3 bg-slate-950/90 border-t border-slate-800 text-xs space-y-2">
+        <div class="flex items-center justify-between text-slate-300 font-semibold">
+          <span class="flex items-center gap-1.5"><i data-lucide="activity" class="w-3.5 h-3.5 text-emerald-400"></i> オーディオ / BPM</span>
+        </div>
+        <div>
+          <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+            <span>マイク感度</span>
+            <span id="val-mic-sens" class="font-mono text-slate-200">1.5x</span>
+          </div>
+          <input type="range" id="prop-mic-sens" min="0.5" max="4" step="0.1" value="1.5" class="w-full accent-emerald-500">
+        </div>
+        <div>
+          <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+            <span>BPM (手動テンポ)</span>
+            <span id="val-bpm" class="font-mono text-slate-200">120</span>
+          </div>
+          <input type="range" id="prop-bpm" min="60" max="180" step="1" value="120" class="w-full accent-indigo-500">
+        </div>
+      </div>
 
-                // Interactive & Persistent internal state for teamLab FX
-                this.fxData = {
-                    flowers: [],
-                    swarming: Array.from({ length: 30 }, () => ({
-                        x: Math.random() * 512,
-                        y: Math.random() * 512,
-                        vx: (Math.random() - 0.5) * 2.5,
-                        vy: (Math.random() - 0.5) * 2.5,
-                        size: Math.random() * 4 + 3
-                    }))
-                };
-            }
+      <!-- ヘルプ・ショートカット案内 -->
+      <div class="p-3 bg-slate-950 border-t border-slate-800 text-[11px] text-slate-400 space-y-1">
+        <p class="font-semibold text-slate-300">💡 Lazy Lighting 操作ポイント</p>
+        <p>・上部の項目を左右スクロールでシーン切り替え</p>
+        <p>・頂点ドラッグで直感マッピング</p>
+        <p>・マイクONで音波・ビートリアクティブ発色</p>
+        <p>・[F] 投影 / [G] テスト格子 / [P] アニメ停止</p>
+      </div>
+    </aside>
 
-            /**
-             * Recomputes interior grid vertices using Bilinear Interpolation based on 4 corners
-             */
-            updateMeshGrid() {
-                const cols = this.gridCols;
-                const rows = this.gridRows;
-                this.mesh = [];
+    <!-- 中央: エディタ ＆ キャンバス -->
+    <main class="flex-1 min-w-0 min-h-0 relative bg-checkerboard flex items-center justify-center overflow-hidden p-4" id="viewport-container">
+      <!-- 投影画面コンテナ (アス比維持) -->
+      <div id="stage" class="relative bg-black shadow-2xl overflow-hidden transition-transform duration-75 shrink-0 touch-none" style="width: 960px; height: 540px;">
+        
+        <!-- 全面グローバルテストパターン用オーバーレイ -->
+        <canvas id="global-test-canvas" class="absolute inset-0 z-40 pointer-events-none hidden w-full h-full"></canvas>
 
-                for (let r = 0; r <= rows; r++) {
-                    const v = r / rows;
-                    this.mesh[r] = [];
-                    for (let c = 0; c <= cols; c++) {
-                        const u = c / cols;
-                        
-                        // Bilinear Interpolation formula for 4 points
-                        const pTL = this.corners[0];
-                        const pTR = this.corners[1];
-                        const pBR = this.corners[2];
-                        const pBL = this.corners[3];
+        <!-- サーフェス要素群 -->
+        <div id="surface-container" class="absolute inset-0 overflow-hidden"></div>
 
-                        const x = (1 - u) * (1 - v) * pTL.x + u * (1 - v) * pTR.x + u * v * pBR.x + (1 - u) * v * pBL.x;
-                        const y = (1 - u) * (1 - v) * pTL.y + u * (1 - v) * pTR.y + u * v * pBR.y + (1 - u) * v * pBL.y;
+        <!-- 編集用オーバーレイ (コントロール頂点・ガイド枠線) -->
+        <svg id="editor-svg" class="absolute inset-0 w-full h-full z-30 pointer-events-none touch-none">
+          <!-- JSで頂点とワイヤーフレームを描画 -->
+        </svg>
+      </div>
+    </main>
 
-                        this.mesh[r][c] = { x, y, u, v };
-                    }
-                }
-            }
+    <!-- 右サイドバー: 選択面のプロパティインスペクタ -->
+    <aside id="right-sidebar" class="w-64 lg:w-72 bg-slate-900 border-l border-slate-800 flex flex-col z-10 shrink-0 transition-all duration-200">
+      <div class="p-3 border-b border-slate-800 flex items-center justify-between">
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+          <i data-lucide="sliders" class="w-4 h-4 text-indigo-400"></i> プロパティ
+        </span>
+        <span id="selected-surface-name" class="text-xs text-indigo-300 font-mono">選択なし</span>
+      </div>
 
-            resetWarp() {
-                const minX = Math.min(...this.corners.map(p => p.x));
-                const maxX = Math.max(...this.corners.map(p => p.x));
-                const minY = Math.min(...this.corners.map(p => p.y));
-                const maxY = Math.max(...this.corners.map(p => p.y));
-                const w = maxX - minX;
-                const h = maxY - minY;
+      <div id="properties-panel" class="flex-1 overflow-y-auto p-4 space-y-5 text-xs">
+        <div class="text-center py-10 text-slate-500" id="no-selection-msg">
+          <i data-lucide="mouse-pointer" class="w-8 h-8 mx-auto mb-2 opacity-40"></i>
+          面を選択してプロパティを編集してください
+        </div>
 
-                this.corners = [
-                    { x: minX, y: minY },
-                    { x: minX + w, y: minY },
-                    { x: minX + w, y: minY + h },
-                    { x: minX, y: minY + h }
-                ];
-                this.updateMeshGrid();
-            }
+        <!-- プロパティフォーム (選択時表示) -->
+        <div id="selection-form" class="space-y-4 hidden">
+          <!-- コンテンツタイプ選定 -->
+          <div>
+            <label class="block text-slate-400 font-medium mb-1.5">コンテンツタイプ</label>
+            <select id="prop-type" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-slate-200 focus:outline-none focus:border-indigo-500">
+              <optgroup label="🎵 Lazy Lighting リアクティブ">
+                <option value="audio-spectrum">オーディオスペクトラム (Sound Wave)</option>
+                <option value="cosmic-pulse">コスミックパルス (Cosmic Pulse)</option>
+                <option value="laser-rings">ネオンレーザーリング (Laser Rings)</option>
+                <option value="hyper-tunnel">ハイパートンネル (Hyper Tunnel)</option>
+              </optgroup>
+              <optgroup label="✨ ジェネラティブ">
+                <option value="neon-wave">ネオンウェーブ (Neon Wave)</option>
+                <option value="particles">サイバーパーティクル (Particles)</option>
+                <option value="grid-pulse">幾何学グリッド (Grid Pulse)</option>
+                <option value="equalizer">ビートイコライザー (Equalizer)</option>
+                <option value="clock">デジタルクロック (Clock)</option>
+              </optgroup>
+              <optgroup label="🖼 メディア & テキスト">
+                <option value="color">単色 / グラデーション</option>
+                <option value="text">カスタムテキスト</option>
+                <option value="image">画像ファイル</option>
+                <option value="video">動画ファイル</option>
+              </optgroup>
+              <optgroup label="📐 調整">
+                <option value="calibration">個別テストパターン</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <!-- シェイプ型（四角形 / 円形） -->
+          <div>
+            <label class="block text-slate-400 font-medium mb-1.5">マッピング形状</label>
+            <select id="prop-shape" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-slate-200">
+              <option value="quad">四角形 (4点パース変形)</option>
+              <option value="circle">円形 / 楕円 (マスク)</option>
+            </select>
+          </div>
+
+          <!-- カラー設定 -->
+          <div id="group-color" class="space-y-2 border-t border-slate-800 pt-3">
+            <label class="block text-slate-400 font-medium">カラー / テーマ色</label>
+            <div class="flex items-center gap-2">
+              <input type="color" id="prop-color-1" class="w-8 h-8 rounded bg-transparent cursor-pointer border border-slate-700">
+              <input type="color" id="prop-color-2" class="w-8 h-8 rounded bg-transparent cursor-pointer border border-slate-700">
+              <span class="text-slate-400 text-[11px]">メイン / サブカラー</span>
+            </div>
+          </div>
+
+          <!-- アニメーション速度 / スケール -->
+          <div id="group-speed" class="space-y-2 border-t border-slate-800 pt-3">
+            <div class="flex justify-between text-slate-400">
+              <span>アニメーション速度</span>
+              <span id="val-speed" class="font-mono text-slate-300">1.0</span>
+            </div>
+            <input type="range" id="prop-speed" min="0.1" max="3" step="0.1" value="1" class="w-full accent-indigo-500">
+          </div>
+
+          <!-- テキスト入力 -->
+          <div id="group-text" class="space-y-2 border-t border-slate-800 pt-3 hidden">
+            <label class="block text-slate-400 font-medium">表示テキスト</label>
+            <input type="text" id="prop-text-val" value="PROJECTION" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-slate-200">
+          </div>
+
+          <!-- ファイルアップロード -->
+          <div id="group-file" class="space-y-2 border-t border-slate-800 pt-3 hidden">
+            <label class="block text-slate-400 font-medium">メディアファイル</label>
+            <input type="file" id="prop-file-input" accept="image/*,video/*" class="w-full text-slate-400 text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700">
+          </div>
+
+          <!-- 不透明度 & ブレンドモード -->
+          <div class="space-y-3 border-t border-slate-800 pt-3">
+            <div>
+              <div class="flex justify-between text-slate-400 mb-1">
+                <span>不透明度 (Opacity)</span>
+                <span id="val-opacity" class="font-mono text-slate-300">100%</span>
+              </div>
+              <input type="range" id="prop-opacity" min="0" max="1" step="0.05" value="1" class="w-full accent-indigo-500">
+            </div>
+
+            <div>
+              <label class="block text-slate-400 font-medium mb-1">ブレンドモード</label>
+              <select id="prop-blend" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-slate-200">
+                <option value="normal">Normal (通常)</option>
+                <option value="screen">Screen (スクリーン/加算)</option>
+                <option value="additive">Additive (Lighten)</option>
+                <option value="multiply">Multiply (乗算)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- コーナー位置微調整 -->
+          <div class="border-t border-slate-800 pt-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="text-slate-400 font-medium">頂点座標 (px)</label>
+              <button id="btn-reset-corners" class="text-[11px] text-indigo-400 hover:underline">標準位置に戻す</button>
+            </div>
+            <div class="grid grid-cols-2 gap-2 font-mono text-[11px]">
+              <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                <span class="text-indigo-400 block font-bold">TL (左上)</span>
+                <span id="coord-0">0, 0</span>
+              </div>
+              <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                <span class="text-indigo-400 block font-bold">TR (右上)</span>
+                <span id="coord-1">0, 0</span>
+              </div>
+              <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                <span class="text-indigo-400 block font-bold">BR (右下)</span>
+                <span id="coord-2">0, 0</span>
+              </div>
+              <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                <span class="text-indigo-400 block font-bold">BL (左下)</span>
+                <span id="coord-3">0, 0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 削除ボタン -->
+          <div class="pt-4">
+            <button id="btn-delete-surface" class="w-full py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 font-medium rounded flex items-center justify-center gap-1.5 transition">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+              <span>この面を削除</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    function showToast(message, type = 'info') {
+      let toastEl = document.getElementById('toast-notification');
+      if (!toastEl) {
+        toastEl = document.createElement('div');
+        toastEl.id = 'toast-notification';
+        document.body.appendChild(toastEl);
+      }
+      
+      const isError = type === 'error';
+      toastEl.className = `fixed bottom-5 right-5 z-50 px-4 py-3 rounded-lg shadow-xl text-xs font-medium flex items-center gap-2 transition-all duration-300 ${
+        isError 
+          ? 'bg-red-950/90 border border-red-700/80 text-red-200' 
+          : 'bg-slate-800/95 border border-slate-700 text-slate-100'
+      }`;
+      toastEl.textContent = message;
+
+      setTimeout(() => {
+        toastEl.className = 'fixed bottom-5 right-5 z-50 px-4 py-3 rounded-lg shadow-xl text-xs font-medium flex items-center gap-2 transition-all duration-300 opacity-0 pointer-events-none translate-y-2';
+      }, 3500);
+    }
+
+    /**
+     * Homography Matrix Matrix Engine for Perspective Transformation
+     */
+    function solveLinearSystem(A, b) {
+      const n = b.length;
+      for (let i = 0; i < n; i++) {
+        let maxEl = Math.abs(A[i][i]);
+        let maxRow = i;
+        for (let k = i + 1; k < n; k++) {
+          if (Math.abs(A[k][i]) > maxEl) {
+            maxEl = Math.abs(A[k][i]);
+            maxRow = k;
+          }
+        }
+        for (let k = i; k < n; k++) {
+          const tmp = A[maxRow][k];
+          A[maxRow][k] = A[i][k];
+          A[i][k] = tmp;
+        }
+        const tmp = b[maxRow];
+        b[maxRow] = b[i];
+        b[i] = tmp;
+
+        for (let k = i + 1; k < n; k++) {
+          const c = -A[k][i] / A[i][i];
+          for (let j = i; j < n; j++) {
+            if (i === j) A[k][j] = 0;
+            else A[k][j] += c * A[i][j];
+          }
+          b[k] += c * b[i];
+        }
+      }
+
+      const x = new Array(n).fill(0);
+      for (let i = n - 1; i >= 0; i--) {
+        let sum = 0;
+        for (let j = i + 1; j < n; j++) {
+          sum += A[i][j] * x[j];
+        }
+        x[i] = (b[i] - sum) / A[i][i];
+      }
+      return x;
+    }
+
+    function getHomography(srcW, srcH, dst) {
+      const src = [
+        { x: 0, y: 0 },
+        { x: srcW, y: 0 },
+        { x: srcW, y: srcH },
+        { x: 0, y: srcH }
+      ];
+
+      const A = [];
+      const b = [];
+      for (let i = 0; i < 4; i++) {
+        const sx = src[i].x, sy = src[i].y;
+        const dx = dst[i].x, dy = dst[i].y;
+        A.push([sx, sy, 1, 0, 0, 0, -dx * sx, -dx * sy]);
+        A.push([0, 0, 0, sx, sy, 1, -dy * sx, -dy * sy]);
+        b.push(dx);
+        b.push(dy);
+      }
+
+      const h = solveLinearSystem(A, b);
+      h.push(1.0);
+      return h;
+    }
+
+    function getCSSMatrix3D(srcW, srcH, dstPoints) {
+      const H = getHomography(srcW, srcH, dstPoints);
+      const m = [
+        H[0], H[3], 0, H[6],
+        H[1], H[4], 0, H[7],
+        0,    0,    1, 0,
+        H[2], H[5], 0, 1
+      ];
+      return `matrix3d(${m.map(v => v.toFixed(8)).join(',')})`;
+    }
+
+    const AUDIO = {
+      active: false,
+      context: null,
+      analyser: null,
+      dataArray: null,
+      volume: 0,
+      sensitivity: 1.5,
+      bpm: 120
+    };
+
+    async function initAudio() {
+      if (AUDIO.active) return;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        AUDIO.context = new (window.AudioContext || window.webkitAudioContext)();
+        const source = AUDIO.context.createMediaStreamSource(stream);
+        AUDIO.analyser = AUDIO.context.createAnalyser();
+        AUDIO.analyser.fftSize = 128;
+        source.connect(AUDIO.analyser);
+        AUDIO.dataArray = new Uint8Array(AUDIO.analyser.frequencyBinCount);
+        AUDIO.active = true;
+
+        document.getElementById('mic-status-text').textContent = "マイク連動: ON";
+        document.getElementById('btn-audio-reactive').classList.add('bg-emerald-600', 'text-white');
+        showToast("マイク入力を開始しました", "info");
+      } catch (err) {
+        showToast("マイクアクセスの許可が必要です。ブラウザの設定をご確認ください。", "error");
+      }
+    }
+
+    function updateAudioVolume() {
+      if (!AUDIO.active || !AUDIO.analyser) {
+        const bpmInterval = (60 / AUDIO.bpm);
+        const t = (Date.now() / 1000) % bpmInterval;
+        AUDIO.volume = Math.pow(Math.sin((t / bpmInterval) * Math.PI), 2) * 0.7;
+        return;
+      }
+      AUDIO.analyser.getByteFrequencyData(AUDIO.dataArray);
+      let sum = 0;
+      for (let i = 0; i < AUDIO.dataArray.length; i++) {
+        sum += AUDIO.dataArray[i];
+      }
+      const avg = sum / AUDIO.dataArray.length;
+      AUDIO.volume = Math.min(1.0, (avg / 128.0) * AUDIO.sensitivity);
+    }
+
+    // 定義済みシーンプリセット（上部スクロールバーと連携）
+    const PRESET_SCENES = [
+      {
+        id: 'preset-lazy-stage',
+        title: 'Lazy Stage',
+        subtitle: '円 ＋ 多角形',
+        icon: 'disc',
+        color: 'from-pink-500 to-indigo-500',
+        createSurfaces: () => [
+          createSurface('センターサークル', [{ x: 330, y: 120 }, { x: 630, y: 120 }, { x: 630, y: 420 }, { x: 330, y: 420 }], 'cosmic-pulse', 'circle'),
+          createSurface('背景ネオンウェーブ', [{ x: 80, y: 60 }, { x: 880, y: 60 }, { x: 880, y: 480 }, { x: 80, y: 480 }], 'audio-spectrum', 'quad')
+        ]
+      },
+      {
+        id: 'preset-cube',
+        title: '3D キューブ',
+        subtitle: '立体 3面マッピング',
+        icon: 'box',
+        color: 'from-indigo-500 to-cyan-500',
+        createSurfaces: () => [
+          createSurface('上面 (Top)', [{ x: 480, y: 80 }, { x: 680, y: 180 }, { x: 480, y: 280 }, { x: 280, y: 180 }], 'laser-rings', 'quad'),
+          createSurface('左面 (Left)', [{ x: 280, y: 180 }, { x: 480, y: 280 }, { x: 480, y: 480 }, { x: 280, y: 380 }], 'hyper-tunnel', 'quad'),
+          createSurface('右面 (Right)', [{ x: 480, y: 280 }, { x: 680, y: 180 }, { x: 680, y: 380 }, { x: 480, y: 480 }], 'audio-spectrum', 'quad')
+        ]
+      },
+      {
+        id: 'preset-dual',
+        title: '2面 壁面',
+        subtitle: '左右対比マッピング',
+        icon: 'columns',
+        color: 'from-emerald-500 to-teal-500',
+        createSurfaces: () => [
+          createSurface('壁面 A', [{ x: 80, y: 100 }, { x: 460, y: 120 }, { x: 460, y: 440 }, { x: 80, y: 420 }], 'audio-spectrum', 'quad'),
+          createSurface('壁面 B', [{ x: 500, y: 120 }, { x: 880, y: 100 }, { x: 880, y: 420 }, { x: 500, y: 440 }], 'cosmic-pulse', 'circle')
+        ]
+      },
+      {
+        id: 'preset-tunnel',
+        title: 'コスミック・トンネル',
+        subtitle: '奥行きワープ',
+        icon: 'orbit',
+        color: 'from-purple-500 to-pink-500',
+        createSurfaces: () => [
+          createSurface('トンネルコア', [{ x: 240, y: 100 }, { x: 720, y: 100 }, { x: 720, y: 440 }, { x: 240, y: 440 }], 'hyper-tunnel', 'quad'),
+          createSurface('レーザーリング外郭', [{ x: 120, y: 40 }, { x: 840, y: 40 }, { x: 840, y: 500 }, { x: 120, y: 500 }], 'laser-rings', 'circle')
+        ]
+      },
+      {
+        id: 'preset-soundwave',
+        title: '音波リアクティブ',
+        subtitle: 'スペクトラムビート',
+        icon: 'activity',
+        color: 'from-amber-500 to-rose-500',
+        createSurfaces: () => [
+          createSurface('ビートイコライザー', [{ x: 100, y: 120 }, { x: 860, y: 120 }, { x: 860, y: 420 }, { x: 100, y: 420 }], 'equalizer', 'quad'),
+          createSurface('ネオンウェーブ', [{ x: 150, y: 80 }, { x: 810, y: 80 }, { x: 810, y: 460 }, { x: 150, y: 460 }], 'neon-wave', 'quad')
+        ]
+      },
+      {
+        id: 'preset-cyber-grid',
+        title: 'サイバーパーティクル',
+        subtitle: '幾何学グリッド',
+        icon: 'grid',
+        color: 'from-blue-500 to-indigo-500',
+        createSurfaces: () => [
+          createSurface('サイバーグリッド', [{ x: 100, y: 80 }, { x: 860, y: 80 }, { x: 860, y: 460 }, { x: 100, y: 460 }], 'grid-pulse', 'quad'),
+          createSurface('浮遊パーティクル', [{ x: 200, y: 140 }, { x: 760, y: 140 }, { x: 760, y: 400 }, { x: 200, y: 400 }], 'particles', 'circle')
+        ]
+      },
+      {
+        id: 'preset-clock-display',
+        title: 'デジタルクロック',
+        subtitle: 'リアルタイム時計',
+        icon: 'clock',
+        color: 'from-teal-500 to-cyan-500',
+        createSurfaces: () => [
+          createSurface('ネオンクロック', [{ x: 150, y: 140 }, { x: 810, y: 140 }, { x: 810, y: 400 }, { x: 150, y: 400 }], 'clock', 'quad')
+        ]
+      },
+      {
+        id: 'preset-calibration',
+        title: 'テストグリッド',
+        subtitle: '位置合わせ用標準',
+        icon: 'crosshair',
+        color: 'from-slate-600 to-slate-400',
+        createSurfaces: () => [
+          createSurface('キャリブレーション面', [{ x: 100, y: 60 }, { x: 860, y: 60 }, { x: 860, y: 480 }, { x: 100, y: 480 }], 'calibration', 'quad')
+        ]
+      }
+    ];
+
+    const STATE = {
+      surfaces: [],
+      selectedId: null,
+      selectedCornerIdx: null,
+      activePresetIdx: 0,
+      isProjecting: false,
+      globalTestPattern: false,
+      isAnimationPaused: false,
+      zoom: 1.0,
+      stageWidth: 960,
+      stageHeight: 540,
+      animationTime: 0
+    };
+
+    function createSurface(name, pts, type = 'audio-spectrum', shape = 'quad') {
+      return {
+        id: 'surf_' + Date.now() + '_' + Math.floor(Math.random()*1000),
+        name: name || 'Surface',
+        visible: true,
+        type: type,
+        shape: shape, // 'quad' | 'circle'
+        points: pts || [
+          { x: 200, y: 150 },
+          { x: 500, y: 150 },
+          { x: 500, y: 380 },
+          { x: 200, y: 380 }
+        ],
+        color1: '#6366f1',
+        color2: '#ec4899',
+        speed: 1.0,
+        text: 'PROJECTION',
+        opacity: 1.0,
+        blendMode: 'normal',
+        mediaUrl: null,
+        mediaElement: null,
+        internalCanvas: document.createElement('canvas')
+      };
+    }
+
+    const RENDER_WIDTH = 640;
+    const RENDER_HEIGHT = 480;
+
+    function renderSurfaceContent(surf, time) {
+      const cvs = surf.internalCanvas;
+      if (cvs.width !== RENDER_WIDTH) {
+        cvs.width = RENDER_WIDTH;
+        cvs.height = RENDER_HEIGHT;
+      }
+      const ctx = cvs.getContext('2d');
+      const w = RENDER_WIDTH;
+      const h = RENDER_HEIGHT;
+      const t = time * surf.speed;
+      const vol = AUDIO.volume;
+
+      ctx.clearRect(0, 0, w, h);
+
+      if (surf.shape === 'circle') {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(w / 2, h / 2, Math.min(w, h) / 2, 0, Math.PI * 2);
+        ctx.clip();
+      }
+
+      switch (surf.type) {
+        case 'audio-spectrum': {
+          ctx.fillStyle = '#030712';
+          ctx.fillRect(0, 0, w, h);
+          const bars = 24;
+          const barW = w / bars;
+
+          for (let i = 0; i < bars; i++) {
+            const freqVal = AUDIO.dataArray ? (AUDIO.dataArray[i * 2] / 255) : (Math.sin(t * 5 + i * 0.3) * 0.5 + 0.5);
+            const bh = (freqVal * 0.8 + vol * 0.4) * h;
+
+            const grad = ctx.createLinearGradient(0, h, 0, h - bh);
+            grad.addColorStop(0, surf.color1);
+            grad.addColorStop(1, surf.color2);
+
+            ctx.fillStyle = grad;
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = surf.color1;
+            ctx.fillRect(i * barW + 2, h - bh, barW - 4, bh);
+          }
+          ctx.shadowBlur = 0;
+          break;
         }
 
-        /**
-         * Generates visual patterns onto offscreen canvas for texture mapping
-         */
-        function renderEffectToOffscreen(surface, time) {
-            const w = offscreenCanvas.width;
-            const h = offscreenCanvas.height;
-            const t = time * surface.speed;
+        case 'cosmic-pulse': {
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(0, 0, w, h);
+          const rings = 8;
+          const maxR = Math.min(w, h) * 0.45;
 
-            offCtx.save();
-            offCtx.fillStyle = '#000000';
-            offCtx.fillRect(0, 0, w, h);
-
-            if (!surface.fxData) {
-                surface.fxData = { flowers: [], swarming: [] };
-            }
-
-            switch (surface.effect) {
-                case 'neon_grid': {
-                    offCtx.lineWidth = 4;
-                    const gridSize = 40;
-                    const shift = (t * 50) % gridSize;
-
-                    // Grid Background
-                    offCtx.strokeStyle = surface.color1;
-                    offCtx.globalAlpha = 0.4;
-                    for (let x = 0; x <= w; x += gridSize) {
-                        offCtx.beginPath();
-                        offCtx.moveTo(x, 0);
-                        offCtx.lineTo(x, h);
-                        offCtx.stroke();
-                    }
-                    for (let y = shift; y <= h; y += gridSize) {
-                        offCtx.beginPath();
-                        offCtx.moveTo(0, y);
-                        offCtx.lineTo(w, y);
-                        offCtx.stroke();
-                    }
-
-                    // Pulse Circles
-                    offCtx.globalAlpha = 0.8;
-                    offCtx.strokeStyle = surface.color2;
-                    const r = (Math.sin(t * 2) * 0.5 + 0.5) * (w * 0.4) + 20;
-                    offCtx.beginPath();
-                    offCtx.arc(w / 2, h / 2, r, 0, Math.PI * 2);
-                    offCtx.stroke();
-                    break;
-                }
-
-                case 'particle_tunnel': {
-                    offCtx.fillStyle = surface.color1;
-                    const cx = w / 2;
-                    const cy = h / 2;
-                    const count = 60;
-
-                    for (let i = 0; i < count; i++) {
-                        const angle = (i / count) * Math.PI * 2 + t * 0.2;
-                        const dist = ((t * 150 + i * 20) % (w * 0.6));
-                        const px = cx + Math.cos(angle) * dist;
-                        const py = cy + Math.sin(angle) * dist;
-                        const size = (dist / (w * 0.6)) * 8 + 1;
-
-                        offCtx.globalAlpha = dist / (w * 0.6);
-                        offCtx.beginPath();
-                        offCtx.arc(px, py, size, 0, Math.PI * 2);
-                        offCtx.fill();
-                    }
-                    break;
-                }
-
-                case 'kinetic_waves': {
-                    offCtx.lineWidth = 6;
-                    const lines = 12;
-                    for (let i = 0; i < lines; i++) {
-                        offCtx.strokeStyle = i % 2 === 0 ? surface.color1 : surface.color2;
-                        offCtx.beginPath();
-                        for (let x = 0; x <= w; x += 10) {
-                            const y = h / 2 + Math.sin(x * 0.02 + t * 3 + i * 0.5) * 60 + (i - lines / 2) * 25;
-                            if (x === 0) offCtx.moveTo(x, y);
-                            else offCtx.lineTo(x, y);
-                        }
-                        offCtx.stroke();
-                    }
-                    break;
-                }
-
-                case 'kaleidoscope': {
-                    const cx = w / 2;
-                    const cy = h / 2;
-                    const sides = 8;
-                    offCtx.save();
-                    offCtx.translate(cx, cy);
-
-                    for (let i = 0; i < sides; i++) {
-                        offCtx.rotate((Math.PI * 2) / sides);
-                        offCtx.fillStyle = i % 2 === 0 ? surface.color1 : surface.color2;
-                        offCtx.globalAlpha = 0.7;
-
-                        const scale = Math.sin(t * 2 + i) * 30 + 50;
-                        offCtx.beginPath();
-                        offCtx.moveTo(0, 0);
-                        offCtx.lineTo(scale, scale * 1.5);
-                        offCtx.lineTo(scale * 1.5, scale);
-                        offCtx.closePath();
-                        offCtx.fill();
-                    }
-                    offCtx.restore();
-                    break;
-                }
-
-                case 'matrix': {
-                    offCtx.fillStyle = '#00ff66';
-                    offCtx.font = '14px monospace';
-                    const cols = 20;
-                    const colW = w / cols;
-                    for (let i = 0; i < cols; i++) {
-                        const y = ((t * 200 + i * 80) % h);
-                        const char = String.fromCharCode(0x30A0 + (i * 7) % 96);
-                        offCtx.fillText(char, i * colW + 4, y);
-                    }
-                    break;
-                }
-
-                case 'audio_sim': {
-                    const bars = 24;
-                    const barW = w / bars;
-                    for (let i = 0; i < bars; i++) {
-                        const hFactor = Math.sin(t * 5 + i * 0.8) * 0.4 + 0.5;
-                        const barH = hFactor * h * 0.8;
-                        const grad = offCtx.createLinearGradient(0, h, 0, 0);
-                        grad.addColorStop(0, surface.color1);
-                        grad.addColorStop(1, surface.color2);
-
-                        offCtx.fillStyle = grad;
-                        offCtx.fillRect(i * barW + 2, h - barH, barW - 4, barH);
-                    }
-                    break;
-                }
-
-                case 'media': {
-                    if (surface.mediaElement) {
-                        try {
-                            offCtx.drawImage(surface.mediaElement, 0, 0, w, h);
-                        } catch (e) {
-                            offCtx.fillStyle = '#333';
-                            offCtx.fillRect(0, 0, w, h);
-                            offCtx.fillStyle = '#fff';
-                            offCtx.fillText('No Media Loaded', 20, 20);
-                        }
-                    } else {
-                        offCtx.fillStyle = '#222';
-                        offCtx.fillRect(0, 0, w, h);
-                        offCtx.fillStyle = '#888';
-                        offCtx.font = '16px sans-serif';
-                        offCtx.textAlign = 'center';
-                        offCtx.fillText('Drag & Drop Media File', w / 2, h / 2);
-                    }
-                    break;
-                }
-
-                case 'teamlab_flowers': {
-                    // Blooming & Flowing Organic Flowers
-                    if (!surface.fxData.flowers || surface.fxData.flowers.length === 0) {
-                        surface.fxData.flowers = Array.from({ length: 12 }, () => ({
-                            x: Math.random() * w,
-                            y: Math.random() * h,
-                            size: Math.random() * 32 + 18,
-                            petals: Math.floor(Math.random() * 4) + 5,
-                            angle: Math.random() * Math.PI * 2,
-                            rotSpeed: (Math.random() - 0.5) * 0.02,
-                            hue: Math.random() * 60 + 300
-                        }));
-                    }
-
-                    surface.fxData.flowers.forEach((fl, idx) => {
-                        fl.angle += fl.rotSpeed * surface.speed;
-                        const pulse = Math.sin(t * 2 + idx) * 0.2 + 1;
-                        
-                        offCtx.save();
-                        offCtx.translate(fl.x, fl.y);
-                        offCtx.rotate(fl.angle);
-
-                        for (let p = 0; p < fl.petals; p++) {
-                            const petalAngle = (p / fl.petals) * Math.PI * 2;
-                            offCtx.save();
-                            offCtx.rotate(petalAngle);
-
-                            const grad = offCtx.createRadialGradient(0, 0, 2, fl.size * 0.8, fl.size * 0.8, fl.size * pulse);
-                            grad.addColorStop(0, `hsla(${fl.hue}, 100%, 75%, 0.9)`);
-                            grad.addColorStop(0.6, surface.color1);
-                            grad.addColorStop(1, 'rgba(0,0,0,0)');
-
-                            offCtx.fillStyle = grad;
-                            offCtx.beginPath();
-                            offCtx.ellipse(fl.size * 0.5, 0, fl.size * 0.6 * pulse, fl.size * 0.25, 0, 0, Math.PI * 2);
-                            offCtx.fill();
-                            offCtx.restore();
-                        }
-
-                        // Center core
-                        offCtx.fillStyle = '#fff700';
-                        offCtx.beginPath();
-                        offCtx.arc(0, 0, fl.size * 0.15, 0, Math.PI * 2);
-                        offCtx.fill();
-                        offCtx.restore();
-                    });
-                    break;
-                }
-
-                case 'teamlab_crystal': {
-                    // Vertical LED String / Crystal Universe Simulation
-                    const cols = 28;
-                    const colWidth = w / cols;
-
-                    for (let c = 0; c < cols; c++) {
-                        const cx = c * colWidth + colWidth / 2;
-                        const numLEDs = 20;
-
-                        for (let i = 0; i < numLEDs; i++) {
-                            const cy = (i / numLEDs) * h;
-                            const sparkle = Math.sin(t * 4 + c * 0.5 + i * 0.3);
-                            if (sparkle > 0.1) {
-                                const alpha = (sparkle - 0.1) / 0.9;
-                                const rad = (1 - i / numLEDs) * 6 + 2;
-
-                                const grad = offCtx.createRadialGradient(cx, cy, 0, cx, cy, rad * 3.5);
-                                grad.addColorStop(0, '#ffffff');
-                                grad.addColorStop(0.3, surface.color1);
-                                grad.addColorStop(1, 'rgba(0,0,0,0)');
-
-                                offCtx.fillStyle = grad;
-                                offCtx.globalAlpha = alpha;
-                                offCtx.beginPath();
-                                offCtx.arc(cx, cy, rad * 3.5, 0, Math.PI * 2);
-                                offCtx.fill();
-                            }
-                        }
-                    }
-                    offCtx.globalAlpha = 1.0;
-                    break;
-                }
-
-                case 'teamlab_swarming': {
-                    // Swarm of light / Organic Koi Fish movement
-                    if (!surface.fxData.swarming || surface.fxData.swarming.length === 0) {
-                        surface.fxData.swarming = Array.from({ length: 30 }, () => ({
-                            x: Math.random() * 512,
-                            y: Math.random() * 512,
-                            vx: (Math.random() - 0.5) * 2.5,
-                            vy: (Math.random() - 0.5) * 2.5,
-                            size: Math.random() * 4 + 3
-                        }));
-                    }
-                    const swarm = surface.fxData.swarming;
-                    
-                    swarm.forEach((fish, idx) => {
-                        fish.x += Math.cos(t * 1.5 + idx) * 2.2 * surface.speed + fish.vx;
-                        fish.y += Math.sin(t * 1.2 + idx) * 2.2 * surface.speed + fish.vy;
-
-                        if (fish.x < 0) fish.x = w;
-                        if (fish.x > w) fish.x = 0;
-                        if (fish.y < 0) fish.y = h;
-                        if (fish.y > h) fish.y = 0;
-
-                        const grad = offCtx.createRadialGradient(fish.x, fish.y, 0, fish.x, fish.y, fish.size * 4.5);
-                        grad.addColorStop(0, idx % 2 === 0 ? surface.color1 : surface.color2);
-                        grad.addColorStop(0.5, 'rgba(255, 0, 127, 0.4)');
-                        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-                        offCtx.fillStyle = grad;
-                        offCtx.beginPath();
-                        offCtx.arc(fish.x, fish.y, fish.size * 4.5, 0, Math.PI * 2);
-                        offCtx.fill();
-                    });
-                    break;
-                }
-
-                case 'teamlab_fluid': {
-                    // Fluid Multi-layered Vibrant Energy Waves
-                    const layers = 5;
-                    for (let l = 0; l < layers; l++) {
-                        offCtx.save();
-                        offCtx.globalCompositeOperation = 'lighter';
-                        offCtx.globalAlpha = 0.45;
-
-                        const grad = offCtx.createLinearGradient(0, 0, w, h);
-                        grad.addColorStop(0, surface.color1);
-                        grad.addColorStop(0.5, surface.color2);
-                        grad.addColorStop(1, '#ff007f');
-
-                        offCtx.fillStyle = grad;
-                        offCtx.beginPath();
-                        offCtx.moveTo(0, h);
-
-                        for (let x = 0; x <= w; x += 15) {
-                            const wave1 = Math.sin(x * 0.01 + t * (1 + l * 0.3) + l) * 55;
-                            const wave2 = Math.cos(x * 0.02 - t * 0.8 + l * 0.5) * 35;
-                            const y = h / 2 + wave1 + wave2 + (l - layers / 2) * 45;
-                            offCtx.lineTo(x, y);
-                        }
-
-                        offCtx.lineTo(w, h);
-                        offCtx.closePath();
-                        offCtx.fill();
-                        offCtx.restore();
-                    }
-                    break;
-                }
-            }
-
-            // Brightness filter adjustment
-            if (surface.brightness !== 100) {
-                offCtx.fillStyle = surface.brightness > 100 ? 'rgba(255,255,255,' + ((surface.brightness - 100) / 100) + ')' : 'rgba(0,0,0,' + ((100 - surface.brightness) / 100) + ')';
-                offCtx.fillRect(0, 0, w, h);
-            }
-
-            offCtx.restore();
-        }
-
-        /**
-         * Renders texture warped across subdivided mesh grid using Affine Triangle Transforms
-         */
-        function renderSubdividedMesh(surface) {
-            const rows = surface.gridRows;
-            const cols = surface.gridCols;
-            const mesh = surface.mesh;
-
-            ctx.save();
-            ctx.globalAlpha = surface.alpha;
-
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    const p0 = mesh[r][c];         // TL
-                    const p1 = mesh[r][c + 1];     // TR
-                    const p2 = mesh[r + 1][c + 1]; // BR
-                    const p3 = mesh[r + 1][c];     // BL
-
-                    // Source UV Coordinates on offscreen canvas
-                    const u0 = p0.u * offscreenCanvas.width, v0 = p0.v * offscreenCanvas.height;
-                    const u1 = p1.u * offscreenCanvas.width, v1 = p1.v * offscreenCanvas.height;
-                    const u2 = p2.u * offscreenCanvas.width, v2 = p2.v * offscreenCanvas.height;
-                    const u3 = p3.u * offscreenCanvas.width, v3 = p3.v * offscreenCanvas.height;
-
-                    // Triangle 1 (TL -> TR -> BL)
-                    drawTexturedTriangle(
-                        offscreenCanvas,
-                        u0, v0, u1, v1, u3, v3,
-                        p0.x, p0.y, p1.x, p1.y, p3.x, p3.y
-                    );
-
-                    // Triangle 2 (TR -> BR -> BL)
-                    drawTexturedTriangle(
-                        offscreenCanvas,
-                        u1, v1, u2, v2, u3, v3,
-                        p1.x, p1.y, p2.x, p2.y, p3.x, p3.y
-                    );
-                }
-            }
-
-            ctx.restore();
-        }
-
-        /**
-         * Affine transformation triangle mapping from source image to destination canvas
-         */
-        function drawTexturedTriangle(img, x0, y0, x1, y1, x2, y2, sx0, sy0, sx1, sy1, sx2, sy2) {
-            ctx.save();
+          for (let i = 0; i < rings; i++) {
+            const r = ((t * 80 + i * 35) % maxR) * (1 + vol * 0.3);
             ctx.beginPath();
-            ctx.moveTo(sx0, sy0);
-            ctx.lineTo(sx1, sy1);
-            ctx.lineTo(sx2, sy2);
-            ctx.closePath();
-            ctx.clip();
-
-            // Calculate matrix coefficients
-            const denom = (x0 * (y2 - y1) - x1 * y2 + x2 * y1 + (x1 - x2) * y0);
-            if (Math.abs(denom) < 0.0001) {
-                ctx.restore();
-                return;
-            }
-
-            const m11 = -(y0 * (sx2 - sx1) - y1 * sx2 + y2 * sx1 + (y1 - y2) * sx0) / denom;
-            const m12 = (y0 * (sy2 - sy1) - y1 * sy2 + y2 * sy1 + (y1 - y2) * sy0) / denom;
-            const m21 = (x0 * (sx2 - sx1) - x1 * sx2 + x2 * sx1 + (x1 - x2) * sx0) / denom;
-            const m22 = -(x0 * (sy2 - sy1) - x1 * sy2 + x2 * sy1 + (x1 - x2) * sy0) / denom;
-            const dx = (x0 * (y2 * sx1 - y1 * sx2) + y0 * (x1 * sx2 - x2 * sx1) + (x2 * y1 - x1 * y2) * sx0) / denom;
-            const dy = (x0 * (y2 * sy1 - y1 * sy2) + y0 * (x1 * sy2 - x2 * sy1) + (x2 * y1 - x1 * y2) * sy0) / denom;
-
-            ctx.transform(m11, m12, m21, m22, dx, dy);
-            ctx.drawImage(img, 0, 0);
-            ctx.restore();
+            ctx.arc(w / 2, h / 2, r, 0, Math.PI * 2);
+            ctx.strokeStyle = i % 2 === 0 ? surf.color1 : surf.color2;
+            ctx.lineWidth = 4 + vol * 8;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = ctx.strokeStyle;
+            ctx.stroke();
+          }
+          ctx.shadowBlur = 0;
+          break;
         }
 
-        /**
-         * Draws realistic background mock object structures for testing mapping
-         */
-        function drawBackgroundSimulation() {
-            if (state.bgMode === 'none') return;
+        case 'laser-rings': {
+          ctx.fillStyle = '#050515';
+          ctx.fillRect(0, 0, w, h);
+          const count = 12;
+          ctx.translate(w / 2, h / 2);
 
-            ctx.save();
-            ctx.strokeStyle = '#262a36';
-            ctx.lineWidth = 2;
-            ctx.fillStyle = '#0f1117';
+          for (let i = 0; i < count; i++) {
+            const angle = (i / count) * Math.PI * 2 + t;
+            const dist = (Math.sin(t * 2 + i) * 0.3 + 0.5) * (w * 0.35) * (1 + vol * 0.5);
+            const x = Math.cos(angle) * dist;
+            const y = Math.sin(angle) * dist;
 
-            if (state.bgMode === 'box') {
-                // 3D Isometric Cube Outline
-                const cx = CANVAS_WIDTH / 2;
-                const cy = CANVAS_HEIGHT / 2 + 50;
-                const size = 260;
-
-                // Front Face
-                ctx.fillStyle = '#161922';
-                ctx.beginPath();
-                ctx.rect(cx - size / 2, cy - size / 2, size, size);
-                ctx.fill(); ctx.stroke();
-
-                // Top Face
-                ctx.fillStyle = '#1c202c';
-                ctx.beginPath();
-                ctx.moveTo(cx - size / 2, cy - size / 2);
-                ctx.lineTo(cx - size / 2 + 100, cy - size / 2 - 100);
-                ctx.lineTo(cx + size / 2 + 100, cy - size / 2 - 100);
-                ctx.lineTo(cx + size / 2, cy - size / 2);
-                ctx.closePath();
-                ctx.fill(); ctx.stroke();
-
-                // Right Face
-                ctx.fillStyle = '#12141c';
-                ctx.beginPath();
-                ctx.moveTo(cx + size / 2, cy - size / 2);
-                ctx.lineTo(cx + size / 2 + 100, cy - size / 2 - 100);
-                ctx.lineTo(cx + size / 2 + 100, cy + size / 2 - 100);
-                ctx.lineTo(cx + size / 2, cy + size / 2);
-                ctx.closePath();
-                ctx.fill(); ctx.stroke();
-
-            } else if (state.bgMode === 'building') {
-                // Building Facade
-                ctx.fillStyle = '#12141a';
-                ctx.fillRect(300, 200, 1320, 700);
-                ctx.strokeRect(300, 200, 1320, 700);
-
-                // Windows Grid Outline
-                ctx.strokeStyle = '#1e222e';
-                for (let x = 360; x < 1550; x += 180) {
-                    for (let y = 260; y < 800; y += 150) {
-                        ctx.strokeRect(x, y, 120, 90);
-                    }
-                }
-            } else if (state.bgMode === 'arch') {
-                // Dual Arch Walls
-                ctx.fillStyle = '#151821';
-                // Arch 1
-                ctx.beginPath();
-                ctx.arc(600, 550, 200, Math.PI, 0, false);
-                ctx.rect(400, 550, 400, 350);
-                ctx.fill(); ctx.stroke();
-
-                // Arch 2
-                ctx.beginPath();
-                ctx.arc(1320, 550, 200, Math.PI, 0, false);
-                ctx.rect(1120, 550, 400, 350);
-                ctx.fill(); ctx.stroke();
-            }
-
-            ctx.restore();
+            ctx.beginPath();
+            ctx.arc(x, y, 15 + vol * 20, 0, Math.PI * 2);
+            ctx.fillStyle = i % 2 === 0 ? surf.color1 : surf.color2;
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = ctx.fillStyle;
+            ctx.fill();
+          }
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.shadowBlur = 0;
+          break;
         }
 
-        /**
-         * Renders control points, handles, grid wireframes, and test patterns
-         */
-        function renderUIOverlays() {
-            if (!state.uiVisible) return;
+        case 'hyper-tunnel': {
+          ctx.fillStyle = '#020208';
+          ctx.fillRect(0, 0, w, h);
+          const layers = 10;
+          ctx.translate(w / 2, h / 2);
 
-            // Calibration Pattern Overlay
-            if (state.showGrid) {
-                ctx.save();
-                ctx.strokeStyle = 'rgba(0, 242, 254, 0.25)';
-                ctx.lineWidth = 1;
-
-                // Crosshair Grid
-                for (let x = 0; x < CANVAS_WIDTH; x += 60) {
-                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_HEIGHT); ctx.stroke();
-                }
-                for (let y = 0; y < CANVAS_HEIGHT; y += 60) {
-                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_WIDTH, y); ctx.stroke();
-                }
-
-                // Center Cross
-                ctx.strokeStyle = '#ff007f';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(CANVAS_WIDTH / 2, 0); ctx.lineTo(CANVAS_WIDTH / 2, CANVAS_HEIGHT);
-                ctx.moveTo(0, CANVAS_HEIGHT / 2); ctx.lineTo(CANVAS_WIDTH, CANVAS_HEIGHT / 2);
-                ctx.stroke();
-                ctx.restore();
-            }
-
-            // Surface Wireframe and Handles
-            state.surfaces.forEach(surface => {
-                const isSelected = surface.id === state.selectedSurfaceId;
-
-                // Draw Mesh Lines
-                ctx.save();
-                ctx.strokeStyle = isSelected ? 'rgba(0, 242, 254, 0.8)' : 'rgba(255, 255, 255, 0.25)';
-                ctx.lineWidth = isSelected ? 1.5 : 1;
-
-                const mesh = surface.mesh;
-                for (let r = 0; r <= surface.gridRows; r++) {
-                    ctx.beginPath();
-                    for (let c = 0; c <= surface.gridCols; c++) {
-                        const pt = mesh[r][c];
-                        if (c === 0) ctx.moveTo(pt.x, pt.y);
-                        else ctx.lineTo(pt.x, pt.y);
-                    }
-                    ctx.stroke();
-                }
-                for (let c = 0; c <= surface.gridCols; c++) {
-                    ctx.beginPath();
-                    for (let r = 0; r <= surface.gridRows; r++) {
-                        const pt = mesh[r][c];
-                        if (r === 0) ctx.moveTo(pt.x, pt.y);
-                        else ctx.lineTo(pt.x, pt.y);
-                    }
-                    ctx.stroke();
-                }
-
-                // Draw Vertex Control Handles
-                for (let r = 0; r <= surface.gridRows; r++) {
-                    for (let c = 0; c <= surface.gridCols; c++) {
-                        const pt = mesh[r][c];
-                        const isCorner = (r === 0 || r === surface.gridRows) && (c === 0 || c === surface.gridCols);
-
-                        if (isSelected || isCorner) {
-                            ctx.beginPath();
-                            const radius = isCorner ? 6 : 3.5;
-                            ctx.arc(pt.x, pt.y, radius, 0, Math.PI * 2);
-
-                            if (isCorner) {
-                                ctx.fillStyle = isSelected ? '#00f2fe' : '#ffffff';
-                                ctx.strokeStyle = '#000000';
-                                ctx.lineWidth = 2;
-                            } else {
-                                ctx.fillStyle = '#ff007f';
-                                ctx.strokeStyle = '#ffffff';
-                                ctx.lineWidth = 1;
-                            }
-
-                            ctx.fill();
-                            ctx.stroke();
-                        }
-                    }
-                }
-
-                // Label on surface center
-                const p0 = surface.corners[0];
-                const p2 = surface.corners[2];
-                const cx = (p0.x + p2.x) / 2;
-                const cy = (p0.y + p2.y) / 2;
-
-                ctx.font = 'bold 12px Inter, sans-serif';
-                ctx.fillStyle = isSelected ? '#00f2fe' : 'rgba(255, 255, 255, 0.7)';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(surface.label, cx, cy);
-
-                ctx.restore();
-            });
+          for (let i = layers; i > 0; i--) {
+            const sz = (i * 30 + (t * 60) % 30) * (1 + vol * 0.4);
+            ctx.strokeStyle = i % 2 === 0 ? surf.color1 : surf.color2;
+            ctx.lineWidth = 3;
+            ctx.strokeRect(-sz / 2, -sz / 2, sz, sz);
+          }
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          break;
         }
 
-        /**
-         * Main Render Loop
-         */
-        function animate() {
-            state.time += 0.016;
+        case 'neon-wave': {
+          ctx.fillStyle = '#050510';
+          ctx.fillRect(0, 0, w, h);
+          ctx.lineWidth = 3 + vol * 4;
 
-            // Clear Canvas
-            ctx.fillStyle = '#0a0b0e';
-            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          for (let i = 0; i < 5; i++) {
+            ctx.beginPath();
+            const grad = ctx.createLinearGradient(0, 0, w, 0);
+            grad.addColorStop(0, surf.color1);
+            grad.addColorStop(1, surf.color2);
+            ctx.strokeStyle = grad;
 
-            if (!state.blackout) {
-                // 1. Render Background Simulation Object
-                drawBackgroundSimulation();
-
-                // 2. Render Mapped Surfaces with FX
-                state.surfaces.forEach(surface => {
-                    renderEffectToOffscreen(surface, state.time);
-                    renderSubdividedMesh(surface);
-                });
-            } else {
-                // Blackout Mode Indicator
-                ctx.fillStyle = '#ff0055';
-                ctx.font = 'bold 16px Inter';
-                ctx.fillText('BLACKOUT ACTIVE', 30, 40);
+            for (let x = 0; x <= w; x += 10) {
+              const y = h / 2 + 
+                Math.sin(x * 0.01 + t * 2 + i) * (40 + vol * 30) + 
+                Math.cos(x * 0.02 - t * 1.5) * 20;
+              if (x === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
             }
-
-            // 3. Render Overlays / Handles
-            renderUIOverlays();
-
-            requestAnimationFrame(animate);
+            ctx.stroke();
+          }
+          break;
         }
 
-        /**
-         * Canvas Coordinates Helpers & Magnifier Loupe
-         */
-        function getCanvasPoint(e) {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            return {
-                x: (e.clientX - rect.left) * scaleX,
-                y: (e.clientY - rect.top) * scaleY
-            };
+        case 'particles': {
+          ctx.fillStyle = '#020617';
+          ctx.fillRect(0, 0, w, h);
+          const count = 40;
+          for (let i = 0; i < count; i++) {
+            const pX = (Math.sin(i * 99 + t * 0.5) * 0.5 + 0.5) * w;
+            const pY = ((i * 30 + t * (50 + vol * 100)) % h);
+            const radius = (Math.sin(i + t) * 0.5 + 0.5) * 8 + 2 + vol * 6;
+
+            ctx.beginPath();
+            ctx.arc(pX, pY, radius, 0, Math.PI * 2);
+            ctx.fillStyle = (i % 2 === 0) ? surf.color1 : surf.color2;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = ctx.fillStyle;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+          }
+          break;
         }
 
-        function updateLoupe(x, y, clientX, clientY) {
-            const loupe = document.getElementById('loupe');
-            if (!state.isDragging) {
-                loupe.classList.add('hidden');
-                return;
+        case 'grid-pulse': {
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(0, 0, w, h);
+          const cols = 8, rows = 6;
+          const cw = w / cols, ch = h / rows;
+
+          for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+              const pulse = Math.sin(t * 3 + r + c + vol * 3) * 0.5 + 0.5;
+              ctx.strokeStyle = pulse > 0.5 ? surf.color1 : surf.color2;
+              ctx.lineWidth = pulse * 4 + 1 + vol * 4;
+              ctx.strokeRect(c * cw + 5, r * ch + 5, cw - 10, ch - 10);
             }
-
-            loupe.classList.remove('hidden');
-            loupe.style.left = (clientX + 15) + 'px';
-            loupe.style.top = (clientY - 100) + 'px';
-
-            loupeCtx.fillStyle = '#000';
-            loupeCtx.fillRect(0, 0, 120, 120);
-            loupeCtx.drawImage(
-                canvas,
-                x - 30, y - 30, 60, 60,
-                0, 0, 120, 120
-            );
-
-            // Loupe Crosshair
-            loupeCtx.strokeStyle = '#00f2fe';
-            loupeCtx.lineWidth = 1;
-            loupeCtx.beginPath();
-            loupeCtx.moveTo(60, 0); loupeCtx.lineTo(60, 120);
-            loupeCtx.moveTo(0, 60); loupeCtx.lineTo(120, 60);
-            loupeCtx.stroke();
+          }
+          break;
         }
 
-        // Pointer Down Handler
-        canvas.addEventListener('mousedown', (e) => {
-            const pt = getCanvasPoint(e);
-            let hitFound = false;
+        case 'equalizer': {
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(0, 0, w, h);
+          const bars = 16;
+          const barW = w / bars;
 
-            // Iterate reverse to select top surface first
-            for (let i = state.surfaces.length - 1; i >= 0; i--) {
-                const surface = state.surfaces[i];
-                const mesh = surface.mesh;
+          for (let i = 0; i < bars; i++) {
+            const bh = (Math.sin(t * 4 + i * 0.8) * 0.4 + 0.5 + vol * 0.5) * (h * 0.8);
+            const grad = ctx.createLinearGradient(0, h, 0, h - bh);
+            grad.addColorStop(0, surf.color1);
+            grad.addColorStop(1, surf.color2);
 
-                // Check vertices hit
-                for (let r = 0; r <= surface.gridRows; r++) {
-                    for (let c = 0; c <= surface.gridCols; c++) {
-                        const v = mesh[r][c];
-                        const dist = Math.hypot(v.x - pt.x, v.y - pt.y);
-
-                        if (dist < 12) {
-                            state.selectedSurfaceId = surface.id;
-                            state.activeVertex = { surfaceId: surface.id, r, c };
-                            state.isDragging = true;
-                            hitFound = true;
-                            updateInspector();
-                            updateSurfaceListUI();
-                            return;
-                        }
-                    }
-                }
-            }
-
-            // If no vertex hit, check if point inside bounding box of surface
-            if (!hitFound) {
-                for (let i = state.surfaces.length - 1; i >= 0; i--) {
-                    const surface = state.surfaces[i];
-                    if (isPointInQuad(pt, surface.corners)) {
-                        state.selectedSurfaceId = surface.id;
-                        hitFound = true;
-                        updateInspector();
-                        updateSurfaceListUI();
-                        break;
-                    }
-                }
-            }
-
-            if (!hitFound) {
-                state.selectedSurfaceId = null;
-                updateInspector();
-                updateSurfaceListUI();
-            }
-        });
-
-        // Mouse Move Drag Handler
-        canvas.addEventListener('mousemove', (e) => {
-            const pt = getCanvasPoint(e);
-
-            // Spawn flowers interactively on surface hover when teamLab Flowers active
-            if (!state.isDragging) {
-                state.surfaces.forEach(surface => {
-                    if (isPointInQuad(pt, surface.corners)) {
-                        if (surface.effect === 'teamlab_flowers' && Math.random() < 0.2) {
-                            if (!surface.fxData) surface.fxData = { flowers: [], swarming: [] };
-                            if (!surface.fxData.flowers) surface.fxData.flowers = [];
-                            surface.fxData.flowers.push({
-                                x: Math.random() * offscreenCanvas.width,
-                                y: Math.random() * offscreenCanvas.height,
-                                size: Math.random() * 25 + 12,
-                                petals: 6,
-                                angle: Math.random() * Math.PI * 2,
-                                rotSpeed: (Math.random() - 0.5) * 0.04,
-                                hue: Math.random() * 60 + 280
-                            });
-                            if (surface.fxData.flowers.length > 25) surface.fxData.flowers.shift();
-                        }
-                    }
-                });
-            }
-
-            if (!state.isDragging || !state.activeVertex) return;
-
-            const surface = state.surfaces.find(s => s.id === state.activeVertex.surfaceId);
-            if (!surface) return;
-
-            const { r, c } = state.activeVertex;
-
-            // Snap logic
-            if (state.snapToGrid) {
-                state.surfaces.forEach(other => {
-                    if (other.id === surface.id) return;
-                    other.mesh.forEach(row => row.forEach(v => {
-                        if (Math.abs(v.x - pt.x) < state.snapThreshold) pt.x = v.x;
-                        if (Math.abs(v.y - pt.y) < state.snapThreshold) pt.y = v.y;
-                    }));
-                });
-            }
-
-            // Corner Vertex update
-            if (r === 0 && c === 0) surface.corners[0] = { x: pt.x, y: pt.y };
-            else if (r === 0 && c === surface.gridCols) surface.corners[1] = { x: pt.x, y: pt.y };
-            else if (r === surface.gridRows && c === surface.gridCols) surface.corners[2] = { x: pt.x, y: pt.y };
-            else if (r === surface.gridRows && c === 0) surface.corners[3] = { x: pt.x, y: pt.y };
-
-            // Update mesh point
-            surface.mesh[r][c].x = pt.x;
-            surface.mesh[r][c].y = pt.y;
-
-            // Update Bilinear Grid for corner changes
-            if ((r === 0 || r === surface.gridRows) && (c === 0 || c === surface.gridCols)) {
-                surface.updateMeshGrid();
-            }
-
-            updateLoupe(pt.x, pt.y, e.clientX, e.clientY);
-        });
-
-        window.addEventListener('mouseup', () => {
-            state.isDragging = false;
-            state.activeVertex = null;
-            document.getElementById('loupe').classList.add('hidden');
-        });
-
-        function isPointInQuad(p, corners) {
-            let inside = false;
-            for (let i = 0, j = corners.length - 1; i < corners.length; j = i++) {
-                const xi = corners[i].x, yi = corners[i].y;
-                const xj = corners[j].x, yj = corners[j].y;
-                const intersect = ((yi > p.y) !== (yj > p.y)) && (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi);
-                if (intersect) inside = !inside;
-            }
-            return inside;
+            ctx.fillStyle = grad;
+            ctx.fillRect(i * barW + 4, h - bh, barW - 8, bh);
+          }
+          break;
         }
 
-        /**
-         * Updates Left Sidebar Surface List UI
-         */
-        function updateSurfaceListUI() {
-            const list = document.getElementById('surface-list');
-            const count = document.getElementById('surface-count');
-            list.innerHTML = '';
-            count.innerText = state.surfaces.length;
+        case 'clock': {
+          ctx.fillStyle = '#09090b';
+          ctx.fillRect(0, 0, w, h);
 
-            state.surfaces.forEach((surface, idx) => {
-                const isSelected = surface.id === state.selectedSurfaceId;
-                const item = document.createElement('div');
-                item.className = `p-2.5 rounded-lg border transition cursor-pointer flex items-center justify-between ${
-                    isSelected ? 'bg-dark-700 border-cyan-500/80 shadow-md' : 'bg-dark-900/60 border-dark-600 hover:border-dark-500'
-                }`;
+          const now = new Date();
+          const timeStr = now.toTimeString().split(' ')[0];
+          const msStr = '.' + Math.floor(now.getMilliseconds() / 100);
 
-                item.innerHTML = `
-                    <div class="flex items-center space-x-2.5 truncate">
-                        <span class="w-2 h-2 rounded-full ${isSelected ? 'bg-cyan-400' : 'bg-gray-500'}"></span>
-                        <span class="text-xs font-medium ${isSelected ? 'text-white' : 'text-gray-300'} truncate">${surface.label}</span>
-                    </div>
-                    <div class="flex items-center space-x-1">
-                        <button class="btn-hide p-1 text-gray-500 hover:text-gray-300"><i class="fa-solid fa-eye text-[11px]"></i></button>
-                    </div>
-                `;
-
-                item.addEventListener('click', () => {
-                    state.selectedSurfaceId = surface.id;
-                    updateInspector();
-                    updateSurfaceListUI();
-                });
-
-                list.appendChild(item);
-            });
+          ctx.font = 'bold 70px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = surf.color1;
+          ctx.shadowColor = surf.color1;
+          ctx.shadowBlur = 15 + vol * 20;
+          ctx.fillText(timeStr + msStr, w / 2, h / 2);
+          ctx.shadowBlur = 0;
+          break;
         }
 
-        /**
-         * Updates Right Inspector Properties Panel
-         */
-        function updateInspector() {
-            const emptyState = document.getElementById('inspector-empty');
-            const panel = document.getElementById('inspector-panel');
-
-            const surface = state.surfaces.find(s => s.id === state.selectedSurfaceId);
-
-            if (!surface) {
-                emptyState.classList.remove('hidden');
-                panel.classList.add('hidden');
-                return;
-            }
-
-            emptyState.classList.remove('hidden');
-            panel.classList.remove('hidden');
-
-            document.getElementById('prop-label').value = surface.label;
-            document.getElementById('prop-effect').value = surface.effect;
-            document.getElementById('prop-mesh-res').value = surface.gridCols;
-            document.getElementById('mesh-res-val').innerText = `${surface.gridCols}x${surface.gridRows}`;
-            document.getElementById('prop-color1').value = surface.color1;
-            document.getElementById('prop-color2').value = surface.color2;
-            document.getElementById('prop-speed').value = surface.speed;
-            document.getElementById('speed-val').innerText = `${surface.speed}x`;
-            document.getElementById('prop-bright').value = surface.brightness;
-            document.getElementById('bright-val').innerText = `${surface.brightness}%`;
-            document.getElementById('prop-alpha').value = surface.alpha;
-            document.getElementById('alpha-val').innerText = `${Math.round(surface.alpha * 100)}%`;
-
-            // Media Box toggle
-            const mediaBox = document.getElementById('media-upload-box');
-            if (surface.effect === 'media') mediaBox.classList.remove('hidden');
-            else mediaBox.classList.add('hidden');
+        case 'color': {
+          const grad = ctx.createLinearGradient(0, 0, w, h);
+          grad.addColorStop(0, surf.color1);
+          grad.addColorStop(1, surf.color2);
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, w, h);
+          break;
         }
 
-        /**
-         * Presets Setup
-         */
-        function loadPreset(presetKey) {
-            state.surfaces = [];
+        case 'text': {
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(0, 0, w, h);
 
-            if (presetKey === 'cube') {
-                state.bgMode = 'box';
-                // Top Face
-                const s1 = new Surface('s_top', 'Top Face', 860, 390, 260, 260);
-                s1.corners = [{x: 860, y: 390}, {x: 960, y: 290}, {x: 1220, y: 290}, {x: 1120, y: 390}];
-                s1.effect = 'neon_grid';
-                s1.color1 = '#00f2fe'; s1.color2 = '#7f00ff';
-                s1.updateMeshGrid();
+          ctx.font = '900 52px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
 
-                // Front Face
-                const s2 = new Surface('s_front', 'Front Face', 860, 390, 260, 260);
-                s2.effect = 'kinetic_waves';
-                s2.color1 = '#ff007f'; s2.color2 = '#00f2fe';
-                s2.updateMeshGrid();
+          const grad = ctx.createLinearGradient(0, 0, w, 0);
+          grad.addColorStop(0, surf.color1);
+          grad.addColorStop(1, surf.color2);
 
-                // Right Face
-                const s3 = new Surface('s_right', 'Right Face', 1120, 390, 260, 260);
-                s3.corners = [{x: 1120, y: 390}, {x: 1220, y: 290}, {x: 1220, y: 550}, {x: 1120, y: 650}];
-                s3.effect = 'kaleidoscope';
-                s3.updateMeshGrid();
-
-                state.surfaces.push(s1, s2, s3);
-
-            } else if (presetKey === 'building') {
-                state.bgMode = 'building';
-                const s1 = new Surface('s_bldg', 'Facade Main', 300, 200, 1320, 700);
-                s1.effect = 'matrix';
-                s1.updateMeshGrid();
-                state.surfaces.push(s1);
-
-            } else if (presetKey === 'arch') {
-                state.bgMode = 'arch';
-                const s1 = new Surface('s_arch1', 'Arch Left', 400, 350, 400, 550);
-                s1.effect = 'particle_tunnel';
-                const s2 = new Surface('s_arch2', 'Arch Right', 1120, 350, 400, 550);
-                s2.effect = 'audio_sim';
-                state.surfaces.push(s1, s2);
-
-            } else if (presetKey === 'teamlab') {
-                state.bgMode = 'none';
-                
-                // Left Wall
-                const s1 = new Surface('tl_left', 'Left Wall (Flowers)', 100, 150, 500, 700);
-                s1.corners = [{x: 100, y: 150}, {x: 550, y: 220}, {x: 550, y: 800}, {x: 100, y: 900}];
-                s1.effect = 'teamlab_flowers';
-                s1.color1 = '#ff007f'; s1.color2 = '#7f00ff';
-                s1.updateMeshGrid();
-
-                // Center Main Screen
-                const s2 = new Surface('tl_center', 'Center Screen (Crystal)', 570, 220, 780, 580);
-                s2.effect = 'teamlab_crystal';
-                s2.color1 = '#00f2fe'; s2.color2 = '#ffffff';
-                s2.updateMeshGrid();
-
-                // Right Wall
-                const s3 = new Surface('tl_right', 'Right Wall (Koi Swarm)', 1370, 150, 450, 700);
-                s3.corners = [{x: 1370, y: 220}, {x: 1820, y: 150}, {x: 1820, y: 900}, {x: 1370, y: 800}];
-                s3.effect = 'teamlab_swarming';
-                s3.color1 = '#ff0055'; s3.color2 = '#00f2fe';
-                s3.updateMeshGrid();
-
-                // Floor Projection
-                const s4 = new Surface('tl_floor', 'Floor Immersive Fluid', 300, 800, 1320, 250);
-                s4.corners = [{x: 550, y: 800}, {x: 1370, y: 800}, {x: 1650, y: 1020}, {x: 270, y: 1020}];
-                s4.effect = 'teamlab_fluid';
-                s4.color1 = '#00f2fe'; s4.color2 = '#7f00ff';
-                s4.updateMeshGrid();
-
-                state.surfaces.push(s1, s2, s3, s4);
-            }
-
-            state.selectedSurfaceId = state.surfaces[0]?.id || null;
-            updateInspector();
-            updateSurfaceListUI();
-            showToast('プリセットを読み込みました: ' + presetKey);
+          ctx.fillStyle = grad;
+          ctx.shadowBlur = 20 + vol * 25;
+          ctx.shadowColor = surf.color1;
+          ctx.fillText(surf.text, w / 2, h / 2);
+          ctx.shadowBlur = 0;
+          break;
         }
 
-        /**
-         * Notification Toast
-         */
-        function showToast(msg) {
-            const toast = document.getElementById('toast');
-            document.getElementById('toast-message').innerText = msg;
-            toast.classList.remove('-translate-y-12', 'opacity-0');
-            toast.classList.add('translate-y-0', 'opacity-100');
-            setTimeout(() => {
-                toast.classList.remove('translate-y-0', 'opacity-100');
-                toast.classList.add('-translate-y-12', 'opacity-0');
-            }, 2500);
+        case 'image':
+        case 'video': {
+          if (surf.mediaElement && surf.mediaElement.complete !== false) {
+            ctx.drawImage(surf.mediaElement, 0, 0, w, h);
+          } else {
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, 0, w, h);
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '20px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('メディアを読み込み中...', w / 2, h / 2);
+          }
+          break;
         }
 
-        // Attach DOM Listeners
-        document.getElementById('btn-add-surface').addEventListener('click', () => {
-            const surf = new Surface(null, null, 760, 440, 400, 300);
-            state.surfaces.push(surf);
-            state.selectedSurfaceId = surf.id;
-            updateInspector();
-            updateSurfaceListUI();
-            showToast('新規サーフェスを追加しました');
+        case 'calibration': {
+          drawCalibrationPattern(ctx, w, h);
+          break;
+        }
+      }
+
+      if (surf.shape === 'circle') {
+        ctx.restore();
+      }
+    }
+
+    function drawCalibrationPattern(ctx, w, h) {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      const gridSize = 40;
+
+      for (let x = 0; x <= w; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0); ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= h; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y); ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h);
+      ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2);
+      ctx.stroke();
+
+      ctx.fillStyle = '#3b82f6';
+      [ [20, 20], [w-20, 20], [w-20, h-20], [20, h-20] ].forEach(([cx, cy]) => {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    const stageEl = document.getElementById('stage');
+    const surfaceContainerEl = document.getElementById('surface-container');
+    const editorSvgEl = document.getElementById('editor-svg');
+    const surfaceListEl = document.getElementById('surface-list');
+    const presetScrollContainerEl = document.getElementById('preset-scroll-container');
+
+    function renderApp() {
+      renderPresetScrollChips();
+      renderSurfaceList();
+      renderStageSurfaces();
+      renderEditorOverlay();
+      updatePropertiesPanel();
+    }
+
+    /**
+     * 上部の左右スクロールバー連動チップを動的に生成
+     */
+    function renderPresetScrollChips() {
+      if (!presetScrollContainerEl) return;
+      
+      // 既にレンダリング済みの場合はアクティブ状態のみ更新
+      if (presetScrollContainerEl.children.length === PRESET_SCENES.length) {
+        Array.from(presetScrollContainerEl.children).forEach((chip, idx) => {
+          const isActive = idx === STATE.activePresetIdx;
+          chip.className = `snap-center shrink-0 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all duration-200 border ${
+            isActive 
+              ? 'bg-gradient-to-r from-indigo-500 to-pink-500 text-white border-pink-400 shadow-md shadow-pink-500/20 scale-105' 
+              : 'bg-slate-800/90 hover:bg-slate-700 text-slate-300 border-slate-700/80 hover:border-slate-500'
+          }`;
+        });
+        return;
+      }
+
+      presetScrollContainerEl.innerHTML = '';
+
+      PRESET_SCENES.forEach((p, idx) => {
+        const isActive = idx === STATE.activePresetIdx;
+        const chip = document.createElement('button');
+        chip.id = `preset-chip-${idx}`;
+        chip.className = `snap-center shrink-0 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all duration-200 border ${
+          isActive 
+            ? 'bg-gradient-to-r from-indigo-500 to-pink-500 text-white border-pink-400 shadow-md shadow-pink-500/20 scale-105' 
+            : 'bg-slate-800/90 hover:bg-slate-700 text-slate-300 border-slate-700/80 hover:border-slate-500'
+        }`;
+
+        chip.innerHTML = `
+          <i data-lucide="${p.icon}" class="w-3.5 h-3.5"></i>
+          <span>${p.title}</span>
+          <span class="text-[10px] opacity-70 font-normal">(${p.subtitle})</span>
+        `;
+
+        chip.addEventListener('click', () => {
+          applyPresetScene(idx, true);
         });
 
-        document.getElementById('btn-toggle-grid').addEventListener('click', () => {
-            state.showGrid = !state.showGrid;
-            showToast(state.showGrid ? 'テストパターン: ON' : 'テストパターン: OFF');
+        presetScrollContainerEl.appendChild(chip);
+      });
+
+      lucide.createIcons();
+    }
+
+    /**
+     * 指定されたプリセットシーンの読み込み＆スクロール位置同期
+     */
+    function applyPresetScene(presetIdx, smoothScroll = false) {
+      if (presetIdx < 0 || presetIdx >= PRESET_SCENES.length) return;
+      
+      STATE.activePresetIdx = presetIdx;
+      const preset = PRESET_SCENES[presetIdx];
+      
+      STATE.surfaces = preset.createSurfaces();
+      STATE.selectedId = STATE.surfaces.length > 0 ? STATE.surfaces[0].id : null;
+      STATE.selectedCornerIdx = null;
+
+      renderApp();
+      showToast(`シーン切替: ${preset.title}`, 'info');
+
+      // スクロール位置の自動センタリング
+      const targetChip = document.getElementById(`preset-chip-${presetIdx}`);
+      if (targetChip && presetScrollContainerEl) {
+        targetChip.scrollIntoView({
+          behavior: smoothScroll ? 'smooth' : 'auto',
+          inline: 'center',
+          block: 'nearest'
         });
+      }
+    }
 
-        document.getElementById('btn-toggle-bg').addEventListener('click', () => {
-            const modes = ['box', 'building', 'arch', 'none'];
-            const idx = (modes.indexOf(state.bgMode) + 1) % modes.length;
-            state.bgMode = modes[idx];
-            document.getElementById('bg-mode-label').innerText = 'デモ対象: ' + state.bgMode.toUpperCase();
-        });
+    let isProgrammaticScroll = false;
+    let scrollDebounceTimer = null;
 
-        document.getElementById('btn-snap-toggle').addEventListener('click', () => {
-            state.snapToGrid = !state.snapToGrid;
-            document.getElementById('snap-label').innerText = 'スナップ: ' + (state.snapToGrid ? 'ON' : 'OFF');
-            showToast(state.snapToGrid ? '吸着スナップ有効' : '吸着スナップ無効');
-        });
+    // スクロール操作に応じたシーン自動切り替えイベント
+    presetScrollContainerEl.addEventListener('scroll', () => {
+      if (isProgrammaticScroll) return;
 
-        document.getElementById('btn-blackout').addEventListener('click', () => {
-            state.blackout = !state.blackout;
-            showToast(state.blackout ? 'ブラックアウト ON' : 'ブラックアウト OFF');
-        });
+      clearTimeout(scrollDebounceTimer);
+      scrollDebounceTimer = setTimeout(() => {
+        const containerRect = presetScrollContainerEl.getBoundingClientRect();
+        const containerCenter = containerRect.left + containerRect.width / 2;
 
-        document.getElementById('btn-fullscreen').addEventListener('click', toggleFullScreen);
+        let closestIdx = STATE.activePresetIdx;
+        let minDistance = Infinity;
 
-        function toggleFullScreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(err => showToast('フルスクリーンエラー'));
-            } else {
-                if (document.exitFullscreen) document.exitFullscreen();
+        PRESET_SCENES.forEach((_, idx) => {
+          const chip = document.getElementById(`preset-chip-${idx}`);
+          if (chip) {
+            const rect = chip.getBoundingClientRect();
+            const chipCenter = rect.left + rect.width / 2;
+            const dist = Math.abs(containerCenter - chipCenter);
+            if (dist < minDistance) {
+              minDistance = dist;
+              closestIdx = idx;
             }
+          }
+        });
+
+        if (closestIdx !== STATE.activePresetIdx) {
+          STATE.activePresetIdx = closestIdx;
+          const preset = PRESET_SCENES[closestIdx];
+          STATE.surfaces = preset.createSurfaces();
+          STATE.selectedId = STATE.surfaces.length > 0 ? STATE.surfaces[0].id : null;
+          STATE.selectedCornerIdx = null;
+          renderApp();
+          showToast(`シーン連動: ${preset.title}`, 'info');
+        }
+      }, 150);
+    });
+
+    // スクロールボタン操作
+    document.getElementById('btn-preset-scroll-left').addEventListener('click', () => {
+      const nextIdx = Math.max(0, STATE.activePresetIdx - 1);
+      applyPresetScene(nextIdx, true);
+    });
+
+    document.getElementById('btn-preset-scroll-right').addEventListener('click', () => {
+      const nextIdx = Math.min(PRESET_SCENES.length - 1, STATE.activePresetIdx + 1);
+      applyPresetScene(nextIdx, true);
+    });
+
+    function renderSurfaceList() {
+      surfaceListEl.innerHTML = '';
+
+      STATE.surfaces.forEach((surf, idx) => {
+        const isSelected = surf.id === STATE.selectedId;
+        const item = document.createElement('div');
+        item.className = `p-2.5 rounded-lg border flex items-center justify-between cursor-pointer transition ${
+          isSelected 
+            ? 'bg-indigo-600/20 border-indigo-500 text-white' 
+            : 'bg-slate-800/60 border-slate-700/60 hover:bg-slate-800 text-slate-300'
+        }`;
+
+        item.innerHTML = `
+          <div class="flex items-center space-x-2.5 overflow-hidden">
+            <button class="btn-toggle-vis text-slate-400 hover:text-white" title="表示/非表示">
+              <i data-lucide="${surf.visible ? 'eye' : 'eye-off'}" class="w-4 h-4"></i>
+            </button>
+            <span class="text-xs font-medium truncate flex items-center gap-1.5">
+              <i data-lucide="${surf.shape === 'circle' ? 'circle' : 'square'}" class="w-3 h-3 text-indigo-400"></i>
+              ${surf.name}
+            </span>
+          </div>
+          <div class="flex items-center space-x-1">
+            <button class="btn-move-up p-1 hover:text-white text-slate-400" title="上へ移動"><i data-lucide="chevron-up" class="w-3.5 h-3.5"></i></button>
+            <button class="btn-move-down p-1 hover:text-white text-slate-400" title="下へ移動"><i data-lucide="chevron-down" class="w-3.5 h-3.5"></i></button>
+          </div>
+        `;
+
+        item.addEventListener('click', (e) => {
+          if (!e.target.closest('button')) {
+            STATE.selectedId = surf.id;
+            STATE.selectedCornerIdx = null;
+            renderApp();
+          }
+        });
+
+        item.querySelector('.btn-toggle-vis').addEventListener('click', (e) => {
+          e.stopPropagation();
+          surf.visible = !surf.visible;
+          renderApp();
+        });
+
+        item.querySelector('.btn-move-up').addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (idx > 0) {
+            const temp = STATE.surfaces[idx];
+            STATE.surfaces[idx] = STATE.surfaces[idx - 1];
+            STATE.surfaces[idx - 1] = temp;
+            renderApp();
+          }
+        });
+
+        item.querySelector('.btn-move-down').addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (idx < STATE.surfaces.length - 1) {
+            const temp = STATE.surfaces[idx];
+            STATE.surfaces[idx] = STATE.surfaces[idx + 1];
+            STATE.surfaces[idx + 1] = temp;
+            renderApp();
+          }
+        });
+
+        surfaceListEl.appendChild(item);
+      });
+
+      lucide.createIcons();
+    }
+
+    function renderStageSurfaces() {
+      const existingElements = new Map();
+      Array.from(surfaceContainerEl.children).forEach(el => {
+        existingElements.set(el.id, el);
+      });
+
+      STATE.surfaces.forEach((surf) => {
+        if (!surf.visible) {
+          if (existingElements.has(surf.id)) {
+            existingElements.get(surf.id).style.display = 'none';
+          }
+          return;
         }
 
-        // Inspector Bindings
-        document.getElementById('prop-label').addEventListener('input', (e) => {
-            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
-            if (surf) { surf.label = e.target.value; updateSurfaceListUI(); }
-        });
+        let surfEl = existingElements.get(surf.id);
+        if (!surfEl) {
+          surfEl = document.createElement('div');
+          surfEl.id = surf.id;
+          surfEl.className = 'absolute top-0 left-0 origin-top-left pointer-events-none overflow-hidden';
+          surfEl.style.width = RENDER_WIDTH + 'px';
+          surfEl.style.height = RENDER_HEIGHT + 'px';
 
-        document.getElementById('prop-effect').addEventListener('change', (e) => {
-            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
-            if (surf) { surf.effect = e.target.value; updateInspector(); }
-        });
+          const canvasNode = surf.internalCanvas;
+          canvasNode.className = 'w-full h-full object-cover';
+          surfEl.appendChild(canvasNode);
 
-        document.getElementById('prop-mesh-res').addEventListener('input', (e) => {
-            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
-            if (surf) {
-                const val = parseInt(e.target.value);
-                surf.gridCols = val;
-                surf.gridRows = val;
-                surf.updateMeshGrid();
-                document.getElementById('mesh-res-val').innerText = `${val}x${val}`;
-            }
-        });
-
-        document.getElementById('prop-color1').addEventListener('input', (e) => {
-            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
-            if (surf) surf.color1 = e.target.value;
-        });
-
-        document.getElementById('prop-color2').addEventListener('input', (e) => {
-            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
-            if (surf) surf.color2 = e.target.value;
-        });
-
-        document.getElementById('prop-speed').addEventListener('input', (e) => {
-            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
-            if (surf) {
-                surf.speed = parseFloat(e.target.value);
-                document.getElementById('speed-val').innerText = `${surf.speed}x`;
-            }
-        });
-
-        document.getElementById('prop-bright').addEventListener('input', (e) => {
-            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
-            if (surf) {
-                surf.brightness = parseInt(e.target.value);
-                document.getElementById('bright-val').innerText = `${surf.brightness}%`;
-            }
-        });
-
-        document.getElementById('prop-alpha').addEventListener('input', (e) => {
-            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
-            if (surf) {
-                surf.alpha = parseFloat(e.target.value);
-                document.getElementById('alpha-val').innerText = `${Math.round(surf.alpha * 100)}%`;
-            }
-        });
-
-        document.getElementById('btn-reset-warp').addEventListener('click', () => {
-            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
-            if (surf) { surf.resetWarp(); showToast('メッシュ変形をリセットしました'); }
-        });
-
-        document.getElementById('btn-delete-surface').addEventListener('click', () => {
-            if (!state.selectedSurfaceId) return;
-            state.surfaces = state.surfaces.filter(s => s.id !== state.selectedSurfaceId);
-            state.selectedSurfaceId = state.surfaces[0]?.id || null;
-            updateInspector();
-            updateSurfaceListUI();
-            showToast('サーフェスを削除しました');
-        });
-
-        // Preset Selector Listener
-        document.getElementById('preset-selector').addEventListener('change', (e) => {
-            loadPreset(e.target.value);
-        });
-
-        // Save & Load JSON
-        document.getElementById('btn-preset-save').addEventListener('click', () => {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.surfaces));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", "projection_mapping_config.json");
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
-            showToast('設定JSONを保存しました');
-        });
-
-        document.getElementById('btn-preset-load').addEventListener('click', () => {
-            document.getElementById('preset-file-input').click();
-        });
-
-        document.getElementById('preset-file-input').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                try {
-                    const parsed = JSON.parse(event.target.result);
-                    state.surfaces = parsed.map(sData => {
-                        const s = new Surface(sData.id, sData.label, 0, 0, 100, 100);
-                        Object.assign(s, sData);
-                        s.updateMeshGrid();
-                        return s;
-                    });
-                    state.selectedSurfaceId = state.surfaces[0]?.id || null;
-                    updateInspector();
-                    updateSurfaceListUI();
-                    showToast('設定JSONを読み込みました');
-                } catch (err) {
-                    showToast('JSON読み込み失敗');
-                }
-            };
-            reader.readAsText(file);
-        });
-
-        // Custom Media File Upload
-        const mediaBox = document.getElementById('media-upload-box');
-        const mediaInput = document.getElementById('media-file-input');
-
-        mediaBox.addEventListener('click', () => mediaInput.click());
-        mediaInput.addEventListener('change', (e) => handleMediaFile(e.target.files[0]));
-
-        mediaBox.addEventListener('dragover', (e) => { e.preventDefault(); mediaBox.classList.add('border-cyan-400'); });
-        mediaBox.addEventListener('dragleave', () => mediaBox.classList.remove('border-cyan-400'));
-        mediaBox.addEventListener('drop', (e) => {
-            e.preventDefault();
-            mediaBox.classList.remove('border-cyan-400');
-            if (e.dataTransfer.files.length > 0) handleMediaFile(e.dataTransfer.files[0]);
-        });
-
-        function handleMediaFile(file) {
-            if (!file) return;
-            const surf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
-            if (!surf) return;
-
-            const url = URL.createObjectURL(file);
-            document.getElementById('media-file-name').innerText = file.name;
-
-            if (file.type.startsWith('image/')) {
-                const img = new Image();
-                img.onload = () => { surf.mediaElement = img; surf.mediaType = 'image'; };
-                img.src = url;
-            } else if (file.type.startsWith('video/')) {
-                const video = document.createElement('video');
-                video.autoplay = true;
-                video.loop = true;
-                video.muted = true;
-                video.src = url;
-                video.play();
-                surf.mediaElement = video;
-                surf.mediaType = 'video';
-            }
-            showToast('メディアファイルを読み込みました');
+          surfaceContainerEl.appendChild(surfEl);
+        } else {
+          surfEl.style.display = 'block';
         }
 
-        // Global Keyboard Shortcuts
-        window.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+        const transformCSS = getCSSMatrix3D(RENDER_WIDTH, RENDER_HEIGHT, surf.points);
+        surfEl.style.transform = transformCSS;
+        surfEl.style.opacity = surf.opacity;
+        
+        if (surf.blendMode === 'screen') surfEl.style.mixBlendMode = 'screen';
+        else if (surf.blendMode === 'additive') surfEl.style.mixBlendMode = 'lighten';
+        else if (surf.blendMode === 'multiply') surfEl.style.mixBlendMode = 'multiply';
+        else surfEl.style.mixBlendMode = 'normal';
 
-            if (e.key === 'Tab') {
-                e.preventDefault();
-                state.uiVisible = !state.uiVisible;
-                document.getElementById('app-header').classList.toggle('hidden');
-                document.getElementById('sidebar-left').classList.toggle('hidden');
-                document.getElementById('sidebar-right').classList.toggle('hidden');
-                document.getElementById('ui-overlay-info').classList.toggle('hidden');
-            } else if (e.key === 'f' || e.key === 'F') {
-                toggleFullScreen();
-            } else if (e.key === ' ') {
-                e.preventDefault();
-                state.blackout = !state.blackout;
-                showToast(state.blackout ? 'Blackout' : 'Restored');
-            } else if (e.key === 'Delete' || e.key === 'Backspace') {
-                if (state.selectedSurfaceId) {
-                    document.getElementById('btn-delete-surface').click();
-                }
-            }
-        });
+        existingElements.delete(surf.id);
+      });
 
-        // Responsive Canvas Scaling
-        function resizeCanvasToViewport() {
-            const viewport = document.getElementById('viewport');
-            const aspect = CANVAS_WIDTH / CANVAS_HEIGHT;
-            let w = viewport.clientWidth - 20;
-            let h = w / aspect;
+      existingElements.forEach(el => el.remove());
+    }
 
-            if (h > viewport.clientHeight - 20) {
-                h = viewport.clientHeight - 20;
-                w = h * aspect;
-            }
+    function renderEditorOverlay() {
+      editorSvgEl.innerHTML = '';
 
-            canvas.style.width = `${w}px`;
-            canvas.style.height = `${h}px`;
-        }
+      if (STATE.isProjecting) return;
 
-        window.addEventListener('resize', resizeCanvasToViewport);
+      STATE.surfaces.forEach((surf) => {
+        if (!surf.visible) return;
 
-        // Application Initialization Entry
-        window.onload = function() {
-            resizeCanvasToViewport();
-            loadPreset('cube');
-            animate();
+        const isSelected = surf.id === STATE.selectedId;
+        const pts = surf.points;
+
+        const pointsStr = pts.map(p => `${p.x},${p.y}`).join(' ');
+        const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        polygon.setAttribute('points', pointsStr);
+        polygon.setAttribute('fill', isSelected ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255, 255, 255, 0.03)');
+        polygon.setAttribute('stroke', isSelected ? '#818cf8' : 'rgba(255, 255, 255, 0.4)');
+        polygon.setAttribute('stroke-width', isSelected ? '2' : '1');
+        polygon.setAttribute('stroke-dasharray', isSelected ? 'none' : '4 4');
+        polygon.classList.add('cursor-pointer', 'pointer-events-auto');
+
+        const handlePointerDownPolygon = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          STATE.selectedId = surf.id;
+          STATE.selectedCornerIdx = null;
+          renderApp();
+          startSurfaceDrag(e, surf);
         };
-    </script>
+
+        polygon.addEventListener('pointerdown', handlePointerDownPolygon);
+
+        editorSvgEl.appendChild(polygon);
+
+        if (isSelected) {
+          pts.forEach((p, cornerIdx) => {
+            const isCornerSelected = STATE.selectedCornerIdx === cornerIdx;
+
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.classList.add('pointer-events-auto', 'cursor-grab');
+
+            const hitCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            hitCircle.setAttribute('cx', p.x);
+            hitCircle.setAttribute('cy', p.y);
+            hitCircle.setAttribute('r', '20');
+            hitCircle.setAttribute('fill', 'transparent');
+
+            const outerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            outerCircle.setAttribute('cx', p.x);
+            outerCircle.setAttribute('cy', p.y);
+            outerCircle.setAttribute('r', isCornerSelected ? '10' : '7');
+            outerCircle.setAttribute('fill', isCornerSelected ? '#f59e0b' : '#6366f1');
+            outerCircle.setAttribute('stroke', '#ffffff');
+            outerCircle.setAttribute('stroke-width', '2');
+            outerCircle.setAttribute('filter', 'drop-shadow(0px 2px 4px rgba(0,0,0,0.5))');
+
+            const innerDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            innerDot.setAttribute('cx', p.x);
+            innerDot.setAttribute('cy', p.y);
+            innerDot.setAttribute('r', '3');
+            innerDot.setAttribute('fill', '#ffffff');
+
+            g.appendChild(hitCircle);
+            g.appendChild(outerCircle);
+            g.appendChild(innerDot);
+
+            const handlePointerDownCorner = (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              STATE.selectedId = surf.id;
+              STATE.selectedCornerIdx = cornerIdx;
+              renderApp();
+              startCornerDrag(e, surf, cornerIdx);
+            };
+
+            g.addEventListener('pointerdown', handlePointerDownCorner);
+
+            editorSvgEl.appendChild(g);
+
+            const labels = ['TL', 'TR', 'BR', 'BL'];
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', p.x + 12);
+            text.setAttribute('y', p.y + 4);
+            text.setAttribute('fill', isCornerSelected ? '#fbbf24' : '#cbd5e1');
+            text.setAttribute('font-size', '11');
+            text.setAttribute('font-weight', 'bold');
+            text.setAttribute('font-family', 'monospace');
+            text.setAttribute('style', 'user-select: none; pointer-events: none;');
+            text.textContent = labels[cornerIdx];
+            editorSvgEl.appendChild(text);
+          });
+        }
+      });
+    }
+
+    let isDragging = false;
+
+    function startCornerDrag(e, surf, cornerIdx) {
+      isDragging = true;
+
+      function onPointerMove(moveEvt) {
+        if (!isDragging) return;
+        moveEvt.preventDefault();
+
+        const stageRect = stageEl.getBoundingClientRect();
+        const scaleX = stageRect.width / STATE.stageWidth;
+        const scaleY = stageRect.height / STATE.stageHeight;
+
+        const mouseX = (moveEvt.clientX - stageRect.left) / scaleX;
+        const mouseY = (moveEvt.clientY - stageRect.top) / scaleY;
+
+        surf.points[cornerIdx].x = Math.round(mouseX);
+        surf.points[cornerIdx].y = Math.round(mouseY);
+
+        renderApp();
+      }
+
+      function onPointerUp() {
+        isDragging = false;
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerUp);
+      }
+
+      window.addEventListener('pointermove', onPointerMove, { passive: false });
+      window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointercancel', onPointerUp);
+    }
+
+    function startSurfaceDrag(e, surf) {
+      isDragging = true;
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const initialPoints = surf.points.map(p => ({ ...p }));
+
+      function onPointerMove(moveEvt) {
+        if (!isDragging) return;
+        moveEvt.preventDefault();
+
+        const stageRect = stageEl.getBoundingClientRect();
+        const scaleX = stageRect.width / STATE.stageWidth;
+        const scaleY = stageRect.height / STATE.stageHeight;
+
+        const dx = (moveEvt.clientX - startX) / scaleX;
+        const dy = (moveEvt.clientY - startY) / scaleY;
+
+        surf.points.forEach((p, idx) => {
+          p.x = Math.round(initialPoints[idx].x + dx);
+          p.y = Math.round(initialPoints[idx].y + dy);
+        });
+
+        renderApp();
+      }
+
+      function onPointerUp() {
+        isDragging = false;
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerUp);
+      }
+
+      window.addEventListener('pointermove', onPointerMove, { passive: false });
+      window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointercancel', onPointerUp);
+    }
+
+    function updatePropertiesPanel() {
+      const selectedSurf = STATE.surfaces.find(s => s.id === STATE.selectedId);
+      const noSelMsg = document.getElementById('no-selection-msg');
+      const selForm = document.getElementById('selection-form');
+      const nameEl = document.getElementById('selected-surface-name');
+
+      if (!selectedSurf) {
+        noSelMsg.classList.remove('hidden');
+        selForm.classList.add('hidden');
+        nameEl.textContent = '選択なし';
+        return;
+      }
+
+      noSelMsg.classList.add('hidden');
+      selForm.classList.remove('hidden');
+      nameEl.textContent = selectedSurf.name;
+
+      document.getElementById('prop-type').value = selectedSurf.type;
+      document.getElementById('prop-shape').value = selectedSurf.shape || 'quad';
+      document.getElementById('prop-color-1').value = selectedSurf.color1;
+      document.getElementById('prop-color-2').value = selectedSurf.color2;
+      document.getElementById('prop-speed').value = selectedSurf.speed;
+      document.getElementById('val-speed').textContent = selectedSurf.speed.toFixed(1);
+      document.getElementById('prop-text-val').value = selectedSurf.text;
+      document.getElementById('prop-opacity').value = selectedSurf.opacity;
+      document.getElementById('val-opacity').textContent = Math.round(selectedSurf.opacity * 100) + '%';
+      document.getElementById('prop-blend').value = selectedSurf.blendMode;
+
+      const groupText = document.getElementById('group-text');
+      const groupFile = document.getElementById('group-file');
+
+      if (selectedSurf.type === 'text') groupText.classList.remove('hidden');
+      else groupText.classList.add('hidden');
+
+      if (selectedSurf.type === 'image' || selectedSurf.type === 'video') groupFile.classList.remove('hidden');
+      else groupFile.classList.add('hidden');
+
+      selectedSurf.points.forEach((p, idx) => {
+        const coordEl = document.getElementById(`coord-${idx}`);
+        if (coordEl) coordEl.textContent = `${Math.round(p.x)}, ${Math.round(p.y)}`;
+      });
+    }
+
+    let lastTimestamp = 0;
+
+    function animate(timestamp) {
+      if (!lastTimestamp) lastTimestamp = timestamp;
+      const deltaTime = (timestamp - lastTimestamp) * 0.001;
+      lastTimestamp = timestamp;
+
+      if (!STATE.isAnimationPaused) {
+        STATE.animationTime += deltaTime;
+      }
+
+      updateAudioVolume();
+
+      STATE.surfaces.forEach(surf => {
+        if (surf.visible) {
+          renderSurfaceContent(surf, STATE.animationTime);
+        }
+      });
+
+      if (STATE.globalTestPattern) {
+        const cvs = document.getElementById('global-test-canvas');
+        if (cvs.width !== STATE.stageWidth) {
+          cvs.width = STATE.stageWidth;
+          cvs.height = STATE.stageHeight;
+        }
+        const ctx = cvs.getContext('2d');
+        drawCalibrationPattern(ctx, STATE.stageWidth, STATE.stageHeight);
+      }
+
+      renderStageSurfaces();
+
+      requestAnimationFrame(animate);
+    }
+
+    function toggleAnimation() {
+      STATE.isAnimationPaused = !STATE.isAnimationPaused;
+      const btn = document.getElementById('btn-toggle-animation');
+      const icon = document.getElementById('anim-icon');
+      const text = document.getElementById('anim-status-text');
+
+      if (STATE.isAnimationPaused) {
+        text.textContent = 'アニメ: OFF';
+        btn.classList.add('bg-purple-950/80', 'border-purple-500/50', 'text-purple-200');
+        icon.setAttribute('data-lucide', 'play');
+        icon.className = 'w-3.5 h-3.5 text-purple-400';
+        showToast('アニメーションを一時停止しました', 'info');
+      } else {
+        text.textContent = 'アニメ: ON';
+        btn.classList.remove('bg-purple-950/80', 'border-purple-500/50', 'text-purple-200');
+        icon.setAttribute('data-lucide', 'pause');
+        icon.className = 'w-3.5 h-3.5 text-purple-400';
+        showToast('アニメーションを再開しました', 'info');
+      }
+      lucide.createIcons();
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+      const selectedSurf = STATE.surfaces.find(s => s.id === STATE.selectedId);
+
+      if (e.key === 'f' || e.key === 'F') {
+        toggleProjectionMode();
+      } else if (e.key === 'g' || e.key === 'G') {
+        toggleGlobalTestPattern();
+      } else if (e.key === 'p' || e.key === 'P') {
+        toggleAnimation();
+      } else if (selectedSurf && STATE.selectedCornerIdx !== null) {
+        const step = e.shiftKey ? 10 : 1;
+        let moved = false;
+        if (e.key === 'ArrowLeft') {
+          selectedSurf.points[STATE.selectedCornerIdx].x -= step;
+          moved = true;
+        } else if (e.key === 'ArrowRight') {
+          selectedSurf.points[STATE.selectedCornerIdx].x += step;
+          moved = true;
+        } else if (e.key === 'ArrowUp') {
+          selectedSurf.points[STATE.selectedCornerIdx].y -= step;
+          moved = true;
+        } else if (e.key === 'ArrowDown') {
+          selectedSurf.points[STATE.selectedCornerIdx].y += step;
+          moved = true;
+        }
+        if (moved) {
+          e.preventDefault();
+          renderApp();
+        }
+      }
+    });
+
+    document.getElementById('btn-toggle-animation').addEventListener('click', toggleAnimation);
+    document.getElementById('btn-audio-reactive').addEventListener('click', initAudio);
+
+    document.getElementById('prop-mic-sens').addEventListener('input', (e) => {
+      AUDIO.sensitivity = parseFloat(e.target.value);
+      document.getElementById('val-mic-sens').textContent = AUDIO.sensitivity.toFixed(1) + 'x';
+    });
+
+    document.getElementById('prop-bpm').addEventListener('input', (e) => {
+      AUDIO.bpm = parseInt(e.target.value);
+      document.getElementById('val-bpm').textContent = AUDIO.bpm;
+    });
+
+    document.getElementById('btn-add-surface').addEventListener('click', () => {
+      const count = STATE.surfaces.length + 1;
+      const margin = (count * 20) % 100;
+      const newPts = [
+        { x: 150 + margin, y: 100 + margin },
+        { x: 450 + margin, y: 100 + margin },
+        { x: 450 + margin, y: 320 + margin },
+        { x: 150 + margin, y: 320 + margin }
+      ];
+      const newSurf = createSurface(`四角面 ${count}`, newPts, 'audio-spectrum', 'quad');
+      STATE.surfaces.push(newSurf);
+      STATE.selectedId = newSurf.id;
+      renderApp();
+    });
+
+    document.getElementById('btn-add-circle').addEventListener('click', () => {
+      const count = STATE.surfaces.length + 1;
+      const margin = (count * 20) % 100;
+      const newPts = [
+        { x: 200 + margin, y: 120 + margin },
+        { x: 440 + margin, y: 120 + margin },
+        { x: 440 + margin, y: 360 + margin },
+        { x: 200 + margin, y: 360 + margin }
+      ];
+      const newSurf = createSurface(`円形面 ${count}`, newPts, 'cosmic-pulse', 'circle');
+      STATE.surfaces.push(newSurf);
+      STATE.selectedId = newSurf.id;
+      renderApp();
+    });
+
+    document.getElementById('prop-type').addEventListener('change', (e) => {
+      const surf = STATE.surfaces.find(s => s.id === STATE.selectedId);
+      if (surf) { surf.type = e.target.value; renderApp(); }
+    });
+
+    document.getElementById('prop-shape').addEventListener('change', (e) => {
+      const surf = STATE.surfaces.find(s => s.id === STATE.selectedId);
+      if (surf) { surf.shape = e.target.value; renderApp(); }
+    });
+
+    document.getElementById('prop-color-1').addEventListener('input', (e) => {
+      const surf = STATE.surfaces.find(s => s.id === STATE.selectedId);
+      if (surf) surf.color1 = e.target.value;
+    });
+
+    document.getElementById('prop-color-2').addEventListener('input', (e) => {
+      const surf = STATE.surfaces.find(s => s.id === STATE.selectedId);
+      if (surf) surf.color2 = e.target.value;
+    });
+
+    document.getElementById('prop-speed').addEventListener('input', (e) => {
+      const surf = STATE.surfaces.find(s => s.id === STATE.selectedId);
+      if (surf) {
+        surf.speed = parseFloat(e.target.value);
+        document.getElementById('val-speed').textContent = surf.speed.toFixed(1);
+      }
+    });
+
+    document.getElementById('prop-text-val').addEventListener('input', (e) => {
+      const surf = STATE.surfaces.find(s => s.id === STATE.selectedId);
+      if (surf) surf.text = e.target.value;
+    });
+
+    document.getElementById('prop-opacity').addEventListener('input', (e) => {
+      const surf = STATE.surfaces.find(s => s.id === STATE.selectedId);
+      if (surf) {
+        surf.opacity = parseFloat(e.target.value);
+        document.getElementById('val-opacity').textContent = Math.round(surf.opacity * 100) + '%';
+        renderStageSurfaces();
+      }
+    });
+
+    document.getElementById('prop-blend').addEventListener('change', (e) => {
+      const surf = STATE.surfaces.find(s => s.id === STATE.selectedId);
+      if (surf) { surf.blendMode = e.target.value; renderStageSurfaces(); }
+    });
+
+    document.getElementById('prop-file-input').addEventListener('change', (e) => {
+      const surf = STATE.surfaces.find(s => s.id === STATE.selectedId);
+      const file = e.target.files[0];
+      if (!surf || !file) return;
+
+      const url = URL.createObjectURL(file);
+      if (file.type.startsWith('image/')) {
+        const img = new Image();
+        img.src = url;
+        img.onload = () => { surf.mediaElement = img; surf.type = 'image'; renderApp(); };
+      } else if (file.type.startsWith('video/')) {
+        const video = document.createElement('video');
+        video.src = url;
+        video.autoplay = true;
+        video.loop = true;
+        video.muted = true;
+        video.play();
+        surf.mediaElement = video;
+        surf.type = 'video';
+        renderApp();
+      }
+    });
+
+    document.getElementById('btn-reset-corners').addEventListener('click', () => {
+      const surf = STATE.surfaces.find(s => s.id === STATE.selectedId);
+      if (surf) {
+        surf.points = [
+          { x: 150, y: 100 },
+          { x: 450, y: 100 },
+          { x: 450, y: 320 },
+          { x: 150, y: 320 }
+        ];
+        renderApp();
+      }
+    });
+
+    document.getElementById('btn-delete-surface').addEventListener('click', () => {
+      if (!STATE.selectedId) return;
+      STATE.surfaces = STATE.surfaces.filter(s => s.id !== STATE.selectedId);
+      STATE.selectedId = STATE.surfaces.length > 0 ? STATE.surfaces[0].id : null;
+      renderApp();
+    });
+
+    document.getElementById('btn-test-pattern').addEventListener('click', toggleGlobalTestPattern);
+
+    function autoFitStage() {
+      const container = document.getElementById('viewport-container');
+      if (!container) return;
+      const padding = 32;
+      const availW = container.clientWidth - padding;
+      const availH = container.clientHeight - padding;
+      if (availW <= 0 || availH <= 0) return;
+
+      const scale = Math.min(availW / STATE.stageWidth, availH / STATE.stageHeight);
+      STATE.zoom = Math.max(0.15, Math.min(scale, 1.2));
+      applyZoom();
+    }
+
+    function applyZoom() {
+      if (stageEl) {
+        stageEl.style.transform = `scale(${STATE.zoom})`;
+        stageEl.style.transformOrigin = 'center center';
+      }
+      const zoomText = document.getElementById('zoom-level');
+      if (zoomText) {
+        zoomText.textContent = Math.round(STATE.zoom * 100) + '%';
+      }
+    }
+
+    document.getElementById('btn-zoom-in').addEventListener('click', () => {
+      STATE.zoom = Math.min(2.0, STATE.zoom + 0.1);
+      applyZoom();
+    });
+
+    document.getElementById('btn-zoom-out').addEventListener('click', () => {
+      STATE.zoom = Math.max(0.15, STATE.zoom - 0.1);
+      applyZoom();
+    });
+
+    document.getElementById('btn-zoom-reset').addEventListener('click', autoFitStage);
+
+    document.getElementById('btn-toggle-left').addEventListener('click', () => {
+      document.getElementById('left-sidebar').classList.toggle('hidden');
+      setTimeout(autoFitStage, 50);
+    });
+
+    document.getElementById('btn-toggle-right').addEventListener('click', () => {
+      document.getElementById('right-sidebar').classList.toggle('hidden');
+      setTimeout(autoFitStage, 50);
+    });
+
+    function toggleGlobalTestPattern() {
+      STATE.globalTestPattern = !STATE.globalTestPattern;
+      const cvs = document.getElementById('global-test-canvas');
+      const btn = document.getElementById('btn-test-pattern');
+
+      if (STATE.globalTestPattern) {
+        cvs.classList.remove('hidden');
+        btn.classList.add('bg-indigo-600', 'text-white');
+      } else {
+        cvs.classList.add('hidden');
+        btn.classList.remove('bg-indigo-600', 'text-white');
+      }
+    }
+
+    document.getElementById('btn-project').addEventListener('click', toggleProjectionMode);
+
+    function toggleProjectionMode() {
+      STATE.isProjecting = !STATE.isProjecting;
+      if (STATE.isProjecting) {
+        if (document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen && document.fullscreenElement) {
+          document.exitFullscreen();
+        }
+      }
+      renderEditorOverlay();
+    }
+
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement) {
+        STATE.isProjecting = false;
+        renderEditorOverlay();
+      }
+    });
+
+    document.getElementById('btn-popout').addEventListener('click', () => {
+      const popWindow = window.open('', 'ProjectionWindow', 'width=1280,height=720,menubar=no,toolbar=no');
+      if (!popWindow) {
+        showToast('ポップアップがブロックされました。ブラウザの設定をご確認ください。', 'error');
+        return;
+      }
+
+      popWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Lazy Projection Window</title>
+          <style>
+            body { margin: 0; background: #000; overflow: hidden; }
+            #pop-stage { position: relative; width: ${STATE.stageWidth}px; height: ${STATE.stageHeight}px; transform-origin: 0 0; }
+          </style>
+        </head>
+        <body>
+          <div id="pop-stage"></div>
+          <script>
+            function fitStage() {
+              const scale = Math.min(window.innerWidth / ${STATE.stageWidth}, window.innerHeight / ${STATE.stageHeight});
+              document.getElementById('pop-stage').style.transform = 'scale(' + scale + ')';
+            }
+            window.addEventListener('resize', fitStage);
+            fitStage();
+          <\/script>
+        </body>
+        </html>
+      `);
+
+      const popStage = popWindow.document.getElementById('pop-stage');
+      
+      function syncPopout() {
+        if (popWindow.closed) return;
+        popStage.innerHTML = surfaceContainerEl.innerHTML;
+        requestAnimationFrame(syncPopout);
+      }
+      syncPopout();
+    });
+
+    document.getElementById('btn-export').addEventListener('click', () => {
+      const exportData = STATE.surfaces.map(s => ({
+        name: s.name,
+        visible: s.visible,
+        type: s.type,
+        shape: s.shape,
+        points: s.points,
+        color1: s.color1,
+        color2: s.color2,
+        speed: s.speed,
+        text: s.text,
+        opacity: s.opacity,
+        blendMode: s.blendMode
+      }));
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `lazy-projection-config-${Date.now()}.json`;
+      a.click();
+    });
+
+    document.getElementById('btn-import').addEventListener('click', () => {
+      document.getElementById('file-import-input').click();
+    });
+
+    document.getElementById('file-import-input').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const imported = JSON.parse(event.target.result);
+          STATE.surfaces = imported.map(s => {
+            const surf = createSurface(s.name, s.points, s.type, s.shape || 'quad');
+            Object.assign(surf, s);
+            return surf;
+          });
+          STATE.selectedId = STATE.surfaces.length > 0 ? STATE.surfaces[0].id : null;
+          renderApp();
+          showToast('設定ファイルを読み込みました', 'info');
+        } catch (err) {
+          showToast('設定ファイルの読み込みに失敗しました。', 'error');
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    window.onload = function() {
+      lucide.createIcons();
+      applyPresetScene(0, false);
+
+      autoFitStage();
+      window.addEventListener('resize', autoFitStage);
+      const vpContainer = document.getElementById('viewport-container');
+      if (vpContainer && window.ResizeObserver) {
+        new ResizeObserver(() => autoFitStage()).observe(vpContainer);
+      }
+
+      requestAnimationFrame(animate);
+    };
+  </script>
 </body>
 </html>
