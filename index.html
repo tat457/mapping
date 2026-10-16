@@ -173,7 +173,7 @@
                     <option value="cube">3D Cube (立体ボックス投影)</option>
                     <option value="building">Building Front (建造物ファサード)</option>
                     <option value="arch">Dual Arch (2連アーチ壁面)</option>
-                    <option value="quad_grid">4-Quad Stage (4画面ステージ)</option>
+                    <option value="teamlab">✨ teamLab Immersive (デジタルアート空間)</option>
                 </select>
             </div>
         </aside>
@@ -233,13 +233,21 @@
                     <div class="bg-dark-700/50 p-2.5 rounded-lg border border-dark-600 space-y-2">
                         <label class="text-gray-400 text-[11px] font-medium block">映像エフェクトソース</label>
                         <select id="prop-effect" class="w-full bg-dark-800 border border-dark-500 text-white px-2 py-1.5 rounded focus:border-cyan-500 focus:outline-none">
-                            <option value="neon_grid">サイバーネオン・グリッド</option>
-                            <option value="particle_tunnel">パーティクル・ワープ</option>
-                            <option value="kinetic_waves">キネティック・ウェーブ</option>
-                            <option value="kaleidoscope">幾何学ポリゴン万華鏡</option>
-                            <option value="matrix">デジタル・マトリックス</option>
-                            <option value="audio_sim">オーディオ・ビジュアライザー</option>
-                            <option value="media">カスタムメディア (画像/動画)</option>
+                            <optgroup label="✨ teamLab風デジタルアート">
+                                <option value="teamlab_flowers">華の流転 (Flowers & Bloom)</option>
+                                <option value="teamlab_crystal">クリスタル・ユニバース (Crystal Universe)</option>
+                                <option value="teamlab_swarming">光の魚群 (Light Swarm & Koi)</option>
+                                <option value="teamlab_fluid">光と色彩の流体 (Interactive Fluid)</option>
+                            </optgroup>
+                            <optgroup label="スタンダードエフェクト">
+                                <option value="neon_grid">サイバーネオン・グリッド</option>
+                                <option value="particle_tunnel">パーティクル・ワープ</option>
+                                <option value="kinetic_waves">キネティック・ウェーブ</option>
+                                <option value="kaleidoscope">幾何学ポリゴン万華鏡</option>
+                                <option value="matrix">デジタル・マトリックス</option>
+                                <option value="audio_sim">オーディオ・ビジュアライザー</option>
+                                <option value="media">カスタムメディア (画像/動画)</option>
+                            </optgroup>
                         </select>
 
                         <!-- Custom Media Upload (Hidden by default unless selected) -->
@@ -327,7 +335,7 @@
         const state = {
             surfaces: [],
             selectedSurfaceId: null,
-            activeVertex: null, // { surfaceId, uIndex, vIndex }
+            activeVertex: null, // { surfaceId, r, c }
             isDragging: false,
             showGrid: false,
             bgMode: 'box', // 'box', 'building', 'arch', 'none'
@@ -389,6 +397,18 @@
                 // Media Element if loaded
                 this.mediaElement = null;
                 this.mediaType = null; // 'image' or 'video'
+
+                // Interactive & Persistent internal state for teamLab FX
+                this.fxData = {
+                    flowers: [],
+                    swarming: Array.from({ length: 30 }, () => ({
+                        x: Math.random() * 512,
+                        y: Math.random() * 512,
+                        vx: (Math.random() - 0.5) * 2.5,
+                        vy: (Math.random() - 0.5) * 2.5,
+                        size: Math.random() * 4 + 3
+                    }))
+                };
             }
 
             /**
@@ -448,6 +468,10 @@
             offCtx.save();
             offCtx.fillStyle = '#000000';
             offCtx.fillRect(0, 0, w, h);
+
+            if (!surface.fxData) {
+                surface.fxData = { flowers: [], swarming: [] };
+            }
 
             switch (surface.effect) {
                 case 'neon_grid': {
@@ -576,7 +600,6 @@
                         try {
                             offCtx.drawImage(surface.mediaElement, 0, 0, w, h);
                         } catch (e) {
-                            // Fallback placeholder
                             offCtx.fillStyle = '#333';
                             offCtx.fillRect(0, 0, w, h);
                             offCtx.fillStyle = '#fff';
@@ -589,6 +612,155 @@
                         offCtx.font = '16px sans-serif';
                         offCtx.textAlign = 'center';
                         offCtx.fillText('Drag & Drop Media File', w / 2, h / 2);
+                    }
+                    break;
+                }
+
+                case 'teamlab_flowers': {
+                    // Blooming & Flowing Organic Flowers
+                    if (!surface.fxData.flowers || surface.fxData.flowers.length === 0) {
+                        surface.fxData.flowers = Array.from({ length: 12 }, () => ({
+                            x: Math.random() * w,
+                            y: Math.random() * h,
+                            size: Math.random() * 32 + 18,
+                            petals: Math.floor(Math.random() * 4) + 5,
+                            angle: Math.random() * Math.PI * 2,
+                            rotSpeed: (Math.random() - 0.5) * 0.02,
+                            hue: Math.random() * 60 + 300
+                        }));
+                    }
+
+                    surface.fxData.flowers.forEach((fl, idx) => {
+                        fl.angle += fl.rotSpeed * surface.speed;
+                        const pulse = Math.sin(t * 2 + idx) * 0.2 + 1;
+                        
+                        offCtx.save();
+                        offCtx.translate(fl.x, fl.y);
+                        offCtx.rotate(fl.angle);
+
+                        for (let p = 0; p < fl.petals; p++) {
+                            const petalAngle = (p / fl.petals) * Math.PI * 2;
+                            offCtx.save();
+                            offCtx.rotate(petalAngle);
+
+                            const grad = offCtx.createRadialGradient(0, 0, 2, fl.size * 0.8, fl.size * 0.8, fl.size * pulse);
+                            grad.addColorStop(0, `hsla(${fl.hue}, 100%, 75%, 0.9)`);
+                            grad.addColorStop(0.6, surface.color1);
+                            grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+                            offCtx.fillStyle = grad;
+                            offCtx.beginPath();
+                            offCtx.ellipse(fl.size * 0.5, 0, fl.size * 0.6 * pulse, fl.size * 0.25, 0, 0, Math.PI * 2);
+                            offCtx.fill();
+                            offCtx.restore();
+                        }
+
+                        // Center core
+                        offCtx.fillStyle = '#fff700';
+                        offCtx.beginPath();
+                        offCtx.arc(0, 0, fl.size * 0.15, 0, Math.PI * 2);
+                        offCtx.fill();
+                        offCtx.restore();
+                    });
+                    break;
+                }
+
+                case 'teamlab_crystal': {
+                    // Vertical LED String / Crystal Universe Simulation
+                    const cols = 28;
+                    const colWidth = w / cols;
+
+                    for (let c = 0; c < cols; c++) {
+                        const cx = c * colWidth + colWidth / 2;
+                        const numLEDs = 20;
+
+                        for (let i = 0; i < numLEDs; i++) {
+                            const cy = (i / numLEDs) * h;
+                            const sparkle = Math.sin(t * 4 + c * 0.5 + i * 0.3);
+                            if (sparkle > 0.1) {
+                                const alpha = (sparkle - 0.1) / 0.9;
+                                const rad = (1 - i / numLEDs) * 6 + 2;
+
+                                const grad = offCtx.createRadialGradient(cx, cy, 0, cx, cy, rad * 3.5);
+                                grad.addColorStop(0, '#ffffff');
+                                grad.addColorStop(0.3, surface.color1);
+                                grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+                                offCtx.fillStyle = grad;
+                                offCtx.globalAlpha = alpha;
+                                offCtx.beginPath();
+                                offCtx.arc(cx, cy, rad * 3.5, 0, Math.PI * 2);
+                                offCtx.fill();
+                            }
+                        }
+                    }
+                    offCtx.globalAlpha = 1.0;
+                    break;
+                }
+
+                case 'teamlab_swarming': {
+                    // Swarm of light / Organic Koi Fish movement
+                    if (!surface.fxData.swarming || surface.fxData.swarming.length === 0) {
+                        surface.fxData.swarming = Array.from({ length: 30 }, () => ({
+                            x: Math.random() * 512,
+                            y: Math.random() * 512,
+                            vx: (Math.random() - 0.5) * 2.5,
+                            vy: (Math.random() - 0.5) * 2.5,
+                            size: Math.random() * 4 + 3
+                        }));
+                    }
+                    const swarm = surface.fxData.swarming;
+                    
+                    swarm.forEach((fish, idx) => {
+                        fish.x += Math.cos(t * 1.5 + idx) * 2.2 * surface.speed + fish.vx;
+                        fish.y += Math.sin(t * 1.2 + idx) * 2.2 * surface.speed + fish.vy;
+
+                        if (fish.x < 0) fish.x = w;
+                        if (fish.x > w) fish.x = 0;
+                        if (fish.y < 0) fish.y = h;
+                        if (fish.y > h) fish.y = 0;
+
+                        const grad = offCtx.createRadialGradient(fish.x, fish.y, 0, fish.x, fish.y, fish.size * 4.5);
+                        grad.addColorStop(0, idx % 2 === 0 ? surface.color1 : surface.color2);
+                        grad.addColorStop(0.5, 'rgba(255, 0, 127, 0.4)');
+                        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+                        offCtx.fillStyle = grad;
+                        offCtx.beginPath();
+                        offCtx.arc(fish.x, fish.y, fish.size * 4.5, 0, Math.PI * 2);
+                        offCtx.fill();
+                    });
+                    break;
+                }
+
+                case 'teamlab_fluid': {
+                    // Fluid Multi-layered Vibrant Energy Waves
+                    const layers = 5;
+                    for (let l = 0; l < layers; l++) {
+                        offCtx.save();
+                        offCtx.globalCompositeOperation = 'lighter';
+                        offCtx.globalAlpha = 0.45;
+
+                        const grad = offCtx.createLinearGradient(0, 0, w, h);
+                        grad.addColorStop(0, surface.color1);
+                        grad.addColorStop(0.5, surface.color2);
+                        grad.addColorStop(1, '#ff007f');
+
+                        offCtx.fillStyle = grad;
+                        offCtx.beginPath();
+                        offCtx.moveTo(0, h);
+
+                        for (let x = 0; x <= w; x += 15) {
+                            const wave1 = Math.sin(x * 0.01 + t * (1 + l * 0.3) + l) * 55;
+                            const wave2 = Math.cos(x * 0.02 - t * 0.8 + l * 0.5) * 35;
+                            const y = h / 2 + wave1 + wave2 + (l - layers / 2) * 45;
+                            offCtx.lineTo(x, y);
+                        }
+
+                        offCtx.lineTo(w, h);
+                        offCtx.closePath();
+                        offCtx.fill();
+                        offCtx.restore();
                     }
                     break;
                 }
@@ -979,9 +1151,32 @@
 
         // Mouse Move Drag Handler
         canvas.addEventListener('mousemove', (e) => {
+            const pt = getCanvasPoint(e);
+
+            // Spawn flowers interactively on surface hover when teamLab Flowers active
+            if (!state.isDragging) {
+                state.surfaces.forEach(surface => {
+                    if (isPointInQuad(pt, surface.corners)) {
+                        if (surface.effect === 'teamlab_flowers' && Math.random() < 0.2) {
+                            if (!surface.fxData) surface.fxData = { flowers: [], swarming: [] };
+                            if (!surface.fxData.flowers) surface.fxData.flowers = [];
+                            surface.fxData.flowers.push({
+                                x: Math.random() * offscreenCanvas.width,
+                                y: Math.random() * offscreenCanvas.height,
+                                size: Math.random() * 25 + 12,
+                                petals: 6,
+                                angle: Math.random() * Math.PI * 2,
+                                rotSpeed: (Math.random() - 0.5) * 0.04,
+                                hue: Math.random() * 60 + 280
+                            });
+                            if (surface.fxData.flowers.length > 25) surface.fxData.flowers.shift();
+                        }
+                    }
+                });
+            }
+
             if (!state.isDragging || !state.activeVertex) return;
 
-            const pt = getCanvasPoint(e);
             const surface = state.surfaces.find(s => s.id === state.activeVertex.surfaceId);
             if (!surface) return;
 
@@ -1084,7 +1279,7 @@
                 return;
             }
 
-            emptyState.classList.add('hidden');
+            emptyState.classList.remove('hidden');
             panel.classList.remove('hidden');
 
             document.getElementById('prop-label').value = surface.label;
@@ -1149,6 +1344,38 @@
                 const s2 = new Surface('s_arch2', 'Arch Right', 1120, 350, 400, 550);
                 s2.effect = 'audio_sim';
                 state.surfaces.push(s1, s2);
+
+            } else if (presetKey === 'teamlab') {
+                state.bgMode = 'none';
+                
+                // Left Wall
+                const s1 = new Surface('tl_left', 'Left Wall (Flowers)', 100, 150, 500, 700);
+                s1.corners = [{x: 100, y: 150}, {x: 550, y: 220}, {x: 550, y: 800}, {x: 100, y: 900}];
+                s1.effect = 'teamlab_flowers';
+                s1.color1 = '#ff007f'; s1.color2 = '#7f00ff';
+                s1.updateMeshGrid();
+
+                // Center Main Screen
+                const s2 = new Surface('tl_center', 'Center Screen (Crystal)', 570, 220, 780, 580);
+                s2.effect = 'teamlab_crystal';
+                s2.color1 = '#00f2fe'; s2.color2 = '#ffffff';
+                s2.updateMeshGrid();
+
+                // Right Wall
+                const s3 = new Surface('tl_right', 'Right Wall (Koi Swarm)', 1370, 150, 450, 700);
+                s3.corners = [{x: 1370, y: 220}, {x: 1820, y: 150}, {x: 1820, y: 900}, {x: 1370, y: 800}];
+                s3.effect = 'teamlab_swarming';
+                s3.color1 = '#ff0055'; s3.color2 = '#00f2fe';
+                s3.updateMeshGrid();
+
+                // Floor Projection
+                const s4 = new Surface('tl_floor', 'Floor Immersive Fluid', 300, 800, 1320, 250);
+                s4.corners = [{x: 550, y: 800}, {x: 1370, y: 800}, {x: 1650, y: 1020}, {x: 270, y: 1020}];
+                s4.effect = 'teamlab_fluid';
+                s4.color1 = '#00f2fe'; s4.color2 = '#7f00ff';
+                s4.updateMeshGrid();
+
+                state.surfaces.push(s1, s2, s3, s4);
             }
 
             state.selectedSurfaceId = state.surfaces[0]?.id || null;
